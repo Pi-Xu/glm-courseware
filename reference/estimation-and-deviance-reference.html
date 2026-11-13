@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EDF, Score/IRLS, Deviance &amp; Quasi-Likelihood — GLM Reference</title>
+  <link rel="stylesheet" href="../assets/vendor/katex/0.19.1/katex.min.css">
+  <link rel="stylesheet" href="../assets/teaching.css">
+</head>
+<body>
+  <nav class="topbar">
+    <div class="topbar-inner">
+      <a class="topbar-brand" href="../index.html">GLM Learning Workspace</a>
+      <div class="topbar-nav">
+        <a href="../lessons/0001-why-straight-lines-break.html">Lesson 1</a>
+        <a href="../lessons/0002-why-auc-beats-accuracy.html">Metrics 1: AUC</a>
+        <a href="../lessons/0003-model-performance-taxonomy.html">Metrics 2: Taxonomy</a>
+        <a href="evaluation-metrics-reference.html">Metrics Guide</a>
+        <a href="prerequisites-primer.html">Prerequisites</a>
+        <a href="glm-blueprint-cheatsheet.html">GLM Blueprint</a>
+        <a href="estimation-and-deviance-reference.html" aria-current="page">EDF, IRLS &amp; Deviance</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <header class="lesson-header">
+      <p class="eyebrow">Reference Document · Layers 2–5 Complete Theoretical Reference</p>
+      <h1>EDF Derivations, IRLS Estimation, Deviance &amp; Quasi-Likelihood</h1>
+      <p class="subtitle">
+        Audited, self-contained mathematical and numerical reference for Exponential Dispersion Families, Cumulant Derivatives, Score/Fisher Scoring/IRLS, Deviance, and Overdispersion.
+      </p>
+      <div class="meta-strip">
+        <span class="badge">Grounded in Nelder &amp; Wedderburn (1972), Wedderburn (1974) &amp; Rodríguez App. B</span>
+        <span class="badge">All numerical tables machine-verified</span>
+      </div>
+    </header>
+
+    <section id="edf">
+      <h2>1. Exponential Dispersion Family (EDF) &amp; Prior Weights \(a_i(\phi) = \phi / p_i\)</h2>
+      <p>
+        Nelder &amp; Wedderburn’s Exponential Dispersion Family writes each observation’s density or PMF as
+        <a class="cite" href="https://grodri.github.io/glms/notes/a2.pdf" target="_blank" rel="noopener">Rodríguez §B.1.1, Eq. B.1</a>:
+      </p>
+      \[
+        f(y_i \mid \theta_i, \phi) = \exp\!\left\{\frac{y_i \theta_i - b(\theta_i)}{a_i(\phi)} + c_i(y_i, \phi)\right\}, \qquad a_i(\phi) = \frac{\phi}{p_i}, \quad \phi &gt; 0,
+      \]
+      <p>
+        where \(p_i &gt; 0\) is a <strong>known prior weight</strong> (usually \(p_i = 1\); for grouped proportions \(\tilde{y}_i = y_i/n_i\) or sample means, \(p_i = n_i\)). To rewrite any distribution into EDF form, apply \(\exp(\log f)\) and sort \(\log f\) into <strong>three strict buckets</strong>:
+      </p>
+      <ol>
+        <li><strong>Linear \(y_i\theta_i / a_i(\phi)\) bucket:</strong> Whatever parameter expression multiplies \(y_i / a_i(\phi)\) <em>is</em> the canonical parameter \(\theta_i\).</li>
+        <li><strong>Pure-\(\theta_i\) bucket \(-b(\theta_i)/a_i(\phi)\):</strong> Rewrite all remaining \(\theta_i\)-dependent terms purely as a function of \(\theta_i\) (watching the minus sign!).</li>
+        <li><strong>Remainder \(c_i(y_i, \phi)\):</strong> Collect all terms free of \(\theta_i\) (such as \(-\log(y_i!)\), \(-y_i^2/(2\sigma^2)\), or \(\log\binom{n_i}{y_i}\)).</li>
+      </ol>
+
+      <div class="callout">
+        <div class="callout-title">Two Classic EDF Questions Answered</div>
+        <ul>
+          <li><strong>Why is Gamma’s natural parameter negative (\(\theta_i = -1/\mu_i &lt; 0\)) instead of setting \(\phi &lt; 0\)?</strong> In \(\log f = -\frac{\nu y_i}{\mu_i} - \nu\log\mu_i + \dots = \frac{y_i(-1/\mu_i) - \log\mu_i}{1/\nu} + c\), dispersion \(\phi = 1/\nu\) <strong>must be strictly positive</strong> because \(\operatorname{Var}(Y_i) = \frac{\phi}{p_i}b''(\theta_i) &gt; 0\) and strict convexity forces \(b''(\theta_i) &gt; 0\). Thus the minus sign must sit on \(\theta_i = -1/\mu_i &lt; 0\), giving \(b(\theta_i) = \log(-1/\theta_i) = -\log(-\theta_i)\) (real-valued since \(-\theta_i &gt; 0\)!).</li>
+          <li><strong>Why do Rodríguez and McCullagh &amp; Nelder write Binomial \(b(\theta)\) differently?</strong> For \(Y_i \sim \operatorname{Bin}(n_i, \pi_i)\) with \(\theta_i = \log\frac{\pi_i}{1-\pi_i}\):
+            <em>Form A (Counts \(y_i\), Rodríguez p. 8)</em> sets \(p_i = 1\) and \(b_i(\theta_i) = n_i\log(1+e^{\theta_i})\) (\(\mu_i = n_i\pi_i\)).
+            <em>Form B (Proportions \(\tilde{y}_i = y_i/n_i\), McCullagh &amp; Nelder Table 2.1)</em> sets prior weight \(p_i = n_i\) and universal \(b(\theta_i) = \log(1+e^{\theta_i})\) (\(\mu_i = \pi_i, V(\pi_i) = \pi_i(1-\pi_i)\)). Both produce the exact same log-likelihood and IRLS weights \(w_i = n_i\pi_i(1-\pi_i)\); just never mix Form A’s \(b_i''\) with Form B’s \(p_i=n_i\)!</li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="cumulant">
+      <h2>2. Cumulant Engine \(b(\theta)\), Bartlett’s Identities &amp; Link Invertibility</h2>
+      <ol>
+        <li>
+          <strong>Role 1 (Log-Normalizer):</strong> Requiring \(\int f(y\mid\theta,\phi)\,dy = 1\) forces \(b(\theta) = a_i(\phi)\log\int \exp\{y\theta/a_i(\phi) + c_i(y,\phi)\}\,dy\) on the natural parameter space \(\Theta\) where the integral converges.
+        </li>
+        <li>
+          <strong>Role 2 (Mean via Bartlett’s 1st Identity \(E[U(\theta)] = 0\)):</strong> Define the scalar \(\theta\)-score \(U(\theta) = \frac{\partial \ell_i}{\partial\theta_i} = \frac{Y_i - b'(\theta_i)}{a_i(\phi)}\). Differentiating \(\int f\,dy = 1\) under the fixed-support integral via \(\partial_\theta f = U\cdot f\) gives \(0 = E[U(\theta_i)] = \frac{E[Y_i] - b'(\theta_i)}{a_i(\phi)} \implies \mathbf{E[Y_i] = \mu_i = b'(\theta_i)}\).
+        </li>
+        <li>
+          <strong>Role 3 (Variance via Bartlett’s 2nd Identity \(\operatorname{Var}(U) = -E[\partial_\theta^2 \ell]\)):</strong> Differentiating \(\int U f\,dy = 0\) a second time gives \(0 = \int [(\partial_\theta U)f + U(Uf)]\,dy = E[\partial_\theta^2 \ell_i] + E[U^2]\). Since \(E[U]=0\) and \(\partial_\theta^2 \ell_i = -\frac{b''(\theta_i)}{a_i(\phi)}\):
+          \[
+            \frac{\operatorname{Var}(Y_i)}{a_i(\phi)^2} = \operatorname{Var}(U) = -E\!\left[\frac{\partial^2 \ell_i}{\partial\theta_i^2}\right] = \frac{b''(\theta_i)}{a_i(\phi)}
+            \implies \mathbf{\operatorname{Var}(Y_i) = \frac{\phi}{p_i}b''(\theta_i) = \frac{\phi}{p_i}V(\mu_i)}.
+          \]
+          <em>Historical sidebar:</em> The Cumulant Generating Function is \(K_Y(t) = \log E[e^{tY}] = \frac{b(\theta + t\,a_i(\phi)) - b(\theta)}{a_i(\phi)}\), so \(K_Y'(0) = b'(\theta)\) and \(K_Y''(0) = a_i(\phi)b''(\theta)\).
+        </li>
+        <li>
+          <strong>Why \((b')^{-1}\) Always Exists (Strict Convexity):</strong> For any non-degenerate random variable, \(\operatorname{Var}(Y_i) &gt; 0\) and \(\phi/p_i &gt; 0\) imply \(b''(\theta) &gt; 0\) everywhere on \(\Theta\). Thus \(b(\theta)\) is <strong>strictly convex</strong>, its derivative \(\mu = b'(\theta)\) is <strong>strictly increasing</strong>, and the Inverse Function Theorem guarantees a smooth one-to-one inverse \(\theta = (b')^{-1}(\mu)\). Choosing the <strong>canonical link</strong> \(g(\mu) = (b')^{-1}(\mu)\) composes \(\eta_i = g(b'(\theta_i)) = \theta_i\) directly!
+        </li>
+      </ol>
+    </section>
+
+    <section id="irls">
+      <h2>3. Score Chain Rule, Observed vs. Expected Information &amp; IRLS</h2>
+      <p>
+        Across \(n\) independent observations with joint log-likelihood \(\ell(\beta) = \sum_{i=1}^n \ell_i(\theta_i(\beta))\), the <strong>4-factor chain rule</strong> (\(\ell_i \to \theta_i \to \mu_i \to \eta_i \to \beta_j\)) gives the universal GLM score equations:
+      </p>
+      \[
+        \begin{gathered}
+          U_j(\beta) = \sum_{i=1}^n \underbrace{\frac{\partial \ell_i}{\partial\theta_i}}_{\frac{p_i(y_i-\mu_i)}{\phi}} \underbrace{\frac{d\theta_i}{d\mu_i}}_{\frac{1}{V(\mu_i)}} \underbrace{\frac{d\mu_i}{d\eta_i}}_{\frac{1}{g'(\mu_i)}} \underbrace{\frac{\partial\eta_i}{\partial\beta_j}}_{x_{ij}}
+          = \frac{1}{\phi}\sum_{i=1}^n w_i (y_i - \mu_i)\frac{d\eta_i}{d\mu_i}x_{ij}, \\[6pt]
+          \text{or in matrix form:}\qquad U(\beta) = \frac{1}{\phi}X^\top W G (y - \mu) = 0,
+        \end{gathered}
+      \]
+      <p>
+        where \(G = \operatorname{diag}(d\eta_i/d\mu_i)\) and iterative weights are \(w_i = \frac{p_i}{V(\mu_i)(d\eta_i/d\mu_i)^2}\).
+      </p>
+
+      <ul>
+        <li>
+          <strong>Canonical Link Collapse (\(\theta_i = \eta_i\)):</strong> Because \(\frac{d\mu_i}{d\eta_i} = V(\mu_i)\), \(V(\mu_i)\) cancels out of the score completely: \(U(\beta) = \frac{1}{\phi}X^\top P(y - \mu) = 0 \iff \mathbf{X^\top P \hat{\mu} = X^\top P y}\), making \(X^\top P y\) a \(p\)-dimensional minimal sufficient statistic (and forcing \(\sum(y_i - \hat{\mu}_i) = 0\) whenever \(X\) has an intercept and \(p_i = 1\)), and simplifying weights to \(w_i = p_i V(\mu_i)\).
+        </li>
+        <li>
+          <strong>Observed \(J(\beta)\) vs. Expected Fisher Information \(\mathcal{I}(\beta)\):</strong> Differentiating \(-U(\beta)\) gives:
+          \[
+            J(\beta) = -\frac{\partial^2 \ell}{\partial\beta\partial\beta^\top} = \underbrace{\frac{1}{\phi}X^\top W X}_{\mathcal{I}(\beta) = E[J(\beta)]} - \frac{1}{\phi}\sum_{i=1}^n p_i(y_i - \mu_i)\frac{d^2\theta_i}{d\eta_i^2}x_i x_i^\top.
+          \]
+          Under any <strong>canonical link</strong>, \(\theta_i = \eta_i \implies \frac{d^2\theta_i}{d\eta_i^2} \equiv 0\), so <strong>Observed Information equals Expected Information identically (\(J(\beta) \equiv \mathcal{I}(\beta)\)) and Newton–Raphson \(\equiv\) Fisher Scoring</strong>! Under non-canonical links (e.g., Probit or Identity-Gamma), \(J(\beta) \neq \mathcal{I}(\beta)\) (and \(J\) can even fail to be positive definite away from \(\hat{\beta}\)), which is why GLM software uses Fisher Scoring (\(\mathcal{I}(\beta) = \frac{1}{\phi}X^\top W X\)).
+        </li>
+        <li>
+          <strong>Proof that Fisher Scoring \(\equiv\) IRLS (\(\phi\) cancels!):</strong> Writing \(\beta^{(t)} = (X^\top W^{(t)} X)^{-1}(X^\top W^{(t)} X)\beta^{(t)}\) (valid whenever \(\operatorname{rank}(X)=p\) and \(w_i &gt; 0\)):
+          \[
+            \beta^{(t+1)} = \beta^{(t)} + \mathcal{I}(\beta^{(t)})^{-1}U(\beta^{(t)})
+            = (X^\top W^{(t)} X)^{-1} X^\top W^{(t)} \underbrace{\big[X\beta^{(t)} + G^{(t)}(y - \mu^{(t)})\big]}_{z^{(t)}}.
+          \]
+          Row-by-row, \(z_i^{(t)} = \hat{\eta}_i^{(t)} + (y_i - \hat{\mu}_i^{(t)})\frac{d\eta_i}{d\mu_i}\) is the <strong>working response</strong>! Software initializes from data without guessing \(\beta^{(0)}\) via boundary-nudged \(\mu_i^{(0)}\) (e.g., \(y_i + 0.1\) for Poisson zeros; \(\frac{y_i+0.5}{n_i+1}\) for Binomial).
+        </li>
+        <li>
+          <strong>Resolving the Poisson Weight Paradox (\(w_i = \mu_i\)):</strong> Why do larger Poisson counts get <em>larger</em> IRLS weights \(w_i = \mu_i\) when \(\operatorname{Var}(Y_i) = \mu_i\) is noisier? Because IRLS works on the <strong>log scale</strong> \(z_i \approx \log y_i\), where relative variance is \(\operatorname{Var}\!\left(\frac{Y_i - \mu_i}{\mu_i}\right) = \frac{\mu_i}{\mu_i^2} = \frac{1}{\mu_i}\)—large counts are much more precise in percentage/log terms!
+        </li>
+      </ul>
+
+      <h3>Worked 1-Step IRLS Table (3-Row Grouped Binomial, Mental Matrix Inversion!)</h3>
+      <p>
+        Data: \(n_i = 10\) trials at \(x = (-1, 0, 1)^\top\) with counts \(y = (1, 5, 8)^\top\). Start from \(\beta^{(0)} = (0, \log 4)^\top = (0, 1.3863)^\top \implies \pi^{(0)} = (0.2, 0.5, 0.8)^\top\):
+      </p>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Row \(i\)</th>
+            <th class="num">\(x_i\)</th>
+            <th class="num">\(y_i / n_i\)</th>
+            <th class="num">\(\mu_i^{(0)} = n_i\pi_i^{(0)}\)</th>
+            <th class="num">\(\frac{d\eta_i}{d\mu_i} = \frac{1}{n_i\pi_i(1-\pi_i)}\)</th>
+            <th class="num">Working \(z_i^{(0)}\)</th>
+            <th class="num">Weight \(w_i^{(0)}\)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td class="num">−1</td><td class="num">1 / 10</td><td class="num">2.0</td><td class="num">0.625</td><td class="num">−1.3863 + (1−2)(0.625) = −2.0113</td><td class="num">1.6</td></tr>
+          <tr><td>2</td><td class="num">0</td><td class="num">5 / 10</td><td class="num">5.0</td><td class="num">0.400</td><td class="num">0 + (5−5)(0.400) = 0.0000</td><td class="num">2.5</td></tr>
+          <tr><td>3</td><td class="num">+1</td><td class="num">8 / 10</td><td class="num">8.0</td><td class="num">0.625</td><td class="num">+1.3863 + (8−8)(0.625) = +1.3863</td><td class="num">1.6</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:0.9rem">
+        Because \(x\) is symmetric, \(X^\top W^{(0)} X = \operatorname{diag}(1.6+2.5+1.6,\; 1.6+0+1.6) = \operatorname{diag}(5.7,\; 3.2)\) and \(X^\top W^{(0)} z^{(0)} = (-1.0000,\; 5.4361)^\top\), giving \(\beta^{(1)} = (-1.0000/5.7,\; 5.4361/3.2)^\top = (-0.1754,\; 1.6988)^\top\) (converging to MLE \(\hat{\beta} = (-0.180,\; 1.714)^\top\)).
+      </p>
+    </section>
+
+    <section id="deviance">
+      <h2>4. Benchmark Models, Deviance, Residuals &amp; Quasi-Likelihood</h2>
+      <p>
+        Comparing a fitted \(p\)-parameter model \(\omega\) (\(\hat{\mu}_i\)) against the \(n\)-parameter <strong>Saturated Model \(\Omega\)</strong> (\(\tilde{\mu}_i = y_i\), achieving maximum possible log-likelihood \(\ell(y;\phi)\)) cancels \(c_i(y_i,\phi)\) and defines <strong>Scaled Deviance</strong> \(D^*/\phi = -2[\ell(\hat{\mu};\phi) - \ell(y;\phi)] = D(y,\hat{\mu})/\phi\), where <strong>Unscaled Residual Deviance</strong> \(D(y,\hat{\mu})\) is completely free of \(\phi\):
+      </p>
+      \[
+        D(y, \hat{\mu}) = 2\sum_{i=1}^n p_i\big[y_i(\tilde{\theta}_i - \hat{\theta}_i) - b(\tilde{\theta}_i) + b(\hat{\theta}_i)\big] = \sum_{i=1}^n d_i \ge 0.
+      \]
+      <ul>
+        <li><strong>Gaussian:</strong> \(D = \sum (y_i - \hat{\mu}_i)^2 = \mathbf{RSS}\) (exact Residual Sum of Squares!).</li>
+        <li><strong>Binomial:</strong> \(D = 2\sum\big[y_i\log\frac{y_i}{\hat{\mu}_i} + (n_i - y_i)\log\frac{n_i - y_i}{n_i - \hat{\mu}_i}\big]\) (with \(0\log 0 \equiv 0\)).</li>
+        <li><strong>Poisson:</strong> \(D = 2\sum\big[y_i\log\frac{y_i}{\hat{\mu}_i} - (y_i - \hat{\mu}_i)\big]\).</li>
+        <li><strong>Gamma:</strong> \(D = 2\sum p_i\big[-\log\frac{y_i}{\hat{\mu}_i} + \frac{y_i - \hat{\mu}_i}{\hat{\mu}_i}\big]\).</li>
+      </ul>
+
+      <h3>4-Row Poisson Benchmark &amp; Residual Table (\(x=(0,0,1,1)^\top,\; y=(1,3,5,7)^\top\))</h3>
+      <p style="font-size:0.9rem">
+        Exact log-likelihoods: <strong>Null \(\omega_0\)</strong> (\(\hat{\mu}_0 = 4\)): \(\ell = -8.9237\) (\(D_0 = 5.5674\), 3 df) ·
+        <strong>Fitted \(\omega\)</strong> (\(\hat{\beta}=(\log 2, \log 3)^\top\), \(\hat{\mu}=(2,2,6,6)\)): \(\ell = -6.8307\) (\(D = 1.3814\), 2 df) ·
+        <strong>Saturated \(\Omega\)</strong> (\(\tilde{\mu}=y\)): \(\ell = -6.1400\) (0 df). Drop-in-deviance LRT: \(\Delta D = 5.5674 - 1.3814 = 4.1860\) on 1 df (\(\chi^2_1 p = 0.041\)); Pearson \(X^2 = \sum r_{P,i}^2 = 1.3333\).
+      </p>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Row \(i\)</th>
+            <th class="num">\(y_i\)</th>
+            <th class="num">\(\hat{\mu}_i\)</th>
+            <th class="num">Raw \(y_i - \hat{\mu}_i\)</th>
+            <th class="num">Pearson \(r_{P,i} = \frac{y_i-\hat{\mu}_i}{\sqrt{\hat{\mu}_i}}\)</th>
+            <th class="num">Unit Dev. \(d_i\)</th>
+            <th class="num">Deviance \(r_{D,i} = \pm\sqrt{d_i}\)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td class="num">1</td><td class="num">2</td><td class="num">−1</td><td class="num">−0.707</td><td class="num">0.6137</td><td class="num">−0.783</td></tr>
+          <tr><td>2</td><td class="num">3</td><td class="num">2</td><td class="num">+1</td><td class="num">+0.707</td><td class="num">0.4328</td><td class="num">+0.658</td></tr>
+          <tr><td>3</td><td class="num">5</td><td class="num">6</td><td class="num">−1</td><td class="num">−0.408</td><td class="num">0.1768</td><td class="num">−0.420</td></tr>
+          <tr><td>4</td><td class="num">7</td><td class="num">6</td><td class="num">+1</td><td class="num">+0.408</td><td class="num">0.1581</td><td class="num">+0.398</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <div class="callout-title">Three Inference &amp; Dispersion Laws Never to Forget</div>
+        <ol>
+          <li><strong>Ungrouped Binary (\(n_i=1\)) Deviance Trap:</strong> Comparing single-model \(D\) or \(X^2\) against \(\chi^2_{n-p}\) tests goodness-of-fit ONLY for grouped Binomial (\(n_i\) large) or moderate/large Poisson counts—<strong>never</strong> for ungrouped \(0/1\) binary data, where canonical-logit \(D = -2\sum[\hat{\pi}_i\log\hat{\pi}_i + (1-\hat{\pi}_i)\log(1-\hat{\pi}_i)]\) depends purely on \(\hat{\pi}_i\)! However, <strong>nested differences \(\Delta D = D(\omega_1) - D(\omega_2) \stackrel{a}{\sim} \chi^2_{p_2-p_1}\)</strong> remain valid even for ungrouped binary data.</li>
+          <li><strong>Geometric Trinity of Tests on \(\ell(\beta_1)\):</strong> <strong>Wald</strong> approximates curvature horizontally at \(\hat{\beta}_1\) (\(z = \hat{\beta}_1/\operatorname{SE}\), symmetric CI, fails under separation); <strong>LRT &amp; Profile CI</strong> measure vertical deviance drop \(2[\ell(\hat{\beta}) - \ell_{\text{prof}}(\beta_1)] \le 3.84\) (asymmetric, parameterization-invariant); <strong>Score (Rao)</strong> checks slope \(U(\beta_0)\) at the null without fitting the larger model.</li>
+          <li><strong>\(\phi\)-Cancellation &amp; Wedderburn’s (1974) Quasi-Likelihood:</strong> Because \(\phi\) cancels in \(U(\beta)=0\) and IRLS, \(\hat{\beta}\), \(\hat{\mu}\), and unscaled \(D\) do not depend on \(\phi\), whereas \(\operatorname{Cov}(\hat{\beta}) = \phi(X^\top\hat{W}X)^{-1}\) scales SEs by \(\sqrt{\phi}\)! Furthermore, since \(U(\beta)\) depends <em>only</em> on \(\mu_i\) and \(V(\mu_i)\), <strong>Quasi-Poisson</strong> (\(\operatorname{Var}(Y_i) = \phi\mu_i\) with \(\hat{\phi} = X^2/(n-p) &gt; 1\)) gives consistent \(\hat{\beta}\) and valid SEs even though no discrete Poisson PMF exists for \(\phi \neq 1\)—at the cost of having no true likelihood or AIC.</li>
+        </ol>
+      </div>
+    </section>
+
+    <footer class="lesson-footer">
+      Part of the <a href="../index.html">GLM Learning Workspace</a>.
+    </footer>
+  </main>
+
+  <script src="../assets/vendor/katex/0.19.1/katex.min.js"></script>
+  <script src="../assets/vendor/katex/0.19.1/contrib/auto-render.min.js"></script>
+  <script src="../assets/math.js"></script>
+</body>
+</html>

@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson 0003 — How Metrics Map to the Four Categories of Model Performance</title>
+  <link rel="stylesheet" href="../assets/vendor/katex/0.19.1/katex.min.css">
+  <link rel="stylesheet" href="../assets/teaching.css">
+</head>
+<body>
+  <nav class="topbar">
+    <div class="topbar-inner">
+      <a class="topbar-brand" href="../index.html">GLM Learning Workspace</a>
+      <div class="topbar-nav">
+        <a href="0001-why-straight-lines-break.html">Lesson 1</a>
+        <a href="0002-why-auc-beats-accuracy.html">Metrics 1: AUC</a>
+        <a href="0003-model-performance-taxonomy.html" aria-current="page">Metrics 2: Taxonomy</a>
+        <a href="../reference/evaluation-metrics-reference.html">Metrics Guide</a>
+        <a href="../reference/prerequisites-primer.html">Prerequisites</a>
+        <a href="../reference/glm-blueprint-cheatsheet.html">GLM Blueprint</a>
+        <a href="../reference/estimation-and-deviance-reference.html">EDF, IRLS &amp; Deviance</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <header class="lesson-header">
+      <p class="eyebrow">Lesson 0003 · Evaluation Metrics Track (Zero Statistics Assumed)</p>
+      <h1>How Metrics Map to the Four Categories of Model Performance</h1>
+      <p class="subtitle">
+        "Is this model performing well?" is not one question—it is four completely separate questions. Once you see the four categories of model performance, you will never confuse Accuracy, ROC-AUC, Calibration, and GLM Deviance again.
+      </p>
+      <div class="meta-strip">
+        <span class="badge">~10 min interactive lesson</span>
+        <span class="badge">Builds on: <a href="0002-why-auc-beats-accuracy.html">Lesson 0002 (AUC vs. Accuracy)</a></span>
+        <span class="badge">Cheat Sheet: <a href="../reference/evaluation-metrics-reference.html">Metrics Guide</a></span>
+      </div>
+    </header>
+
+    <section id="four-categories">
+      <h2>1. Why "Model Performance" Splits Into Four Distinct Categories</h2>
+      <p>
+        Recall our core visual intuition from <a href="0002-why-auc-beats-accuracy.html">Lesson 0002</a>: <strong>generally speaking, a stronger binary model pushes true \(0\)s (<span class="cls-badge cls-0"></span>) near \(0.0\) and true \(1\)s (<span class="cls-badge cls-1">×</span>) near \(1.0\).</strong>
+        Why, then, do statisticians still distinguish four categories of metrics? Because checking whether a model truly achieved that \([0, 1]\) picture splits into <strong>four distinct questions</strong>
+        <a class="cite" href="https://doi.org/10.1097/EDE.0b013e3181c30fb2" target="_blank" rel="noopener">Steyerberg et al., 2010</a>,
+        and each metric answers only one:
+      </p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Category 1 · Discrimination (Ranking / Separation)</h3>
+          <p style="font-size:0.9rem;margin-bottom:0">
+            <strong>Plain question:</strong> <em>"Do real \(1\)s get higher scores than real \(0\)s?"</em><br>
+            <strong>Metrics:</strong> <strong>ROC-AUC</strong>, <strong>PR-AUC</strong>.<br>
+            <strong>Blind to:</strong> Whether the numbers are honest probabilities, and any single cutoff \(t\).
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>Category 2 · Calibration (Probability Honesty)</h3>
+          <p style="font-size:0.9rem;margin-bottom:0">
+            <strong>Plain question:</strong> <em>"When the model says \(0.75\), does the event actually happen ~\(75\%\) of the time?"</em><br>
+            <strong>Metrics:</strong> <strong>Calibration Curve</strong> (45° plot), <strong>ECE</strong> (average bucket gap).<br>
+            <strong>Blind to:</strong> Whether scores actually separate individuals!
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>Category 3 · Overall Probabilistic Performance</h3>
+          <p style="font-size:0.9rem;margin-bottom:0">
+            <strong>Plain question:</strong> <em>"How close is each probability \(s_i\) to the true \(0/1\) outcome overall?"</em><br>
+            <strong>Metrics:</strong> <strong>Log-Loss</strong> (\(= \frac{\text{GLM Deviance}}{2n}\)), <strong>Brier Score</strong> \(\frac{1}{n}\sum(y_i-s_i)^2\)
+            <a class="cite" href="https://doi.org/10.1175/1520-0450(1973)012<0595:ANVPOT>2.0.CO;2" target="_blank" rel="noopener">Murphy, 1973</a>.<br>
+            <strong>Key rule:</strong> Only scores well when <strong>both Category 1 AND Category 2</strong> succeed!
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>Category 4 · Cutoff-Specific Action / Utility</h3>
+          <p style="font-size:0.9rem;margin-bottom:0">
+            <strong>Plain question:</strong> <em>"Once we lock in ONE cutoff \(t\) to trigger Yes/No actions, how many mistakes happen?"</em><br>
+            <strong>Metrics:</strong> <strong>Accuracy</strong>, <strong>Recall (TPR)</strong>, <strong>FPR</strong>, <strong>Precision</strong>, <strong>F1</strong>.<br>
+            <strong>Key rule:</strong> Evaluates <strong>Model + Cutoff \(t\)</strong> together, never the model alone!
+          </p>
+        </div>
+      </div>
+
+      <div class="callout">
+        <div class="callout-title">Why Accuracy vs. AUC Was Really a Category Mistake</div>
+        <p>
+          In <a href="0002-why-auc-beats-accuracy.html">Lesson 0002</a>, Accuracy failed because people grabbed a <strong>Category 4 metric</strong> (tied to default cutoff \(t=0.50\)) when they actually wanted to measure <strong>Category 1: Can the model separate \(1\)s from \(0\)s?</strong> (ROC-AUC).
+        </p>
+      </div>
+    </section>
+
+    <section id="archetypes-and-grades">
+      <h2>2. The 2×2 Diagnosis Grid &amp; How AUC Grades Discrimination</h2>
+      <p>
+        Beginners often assume: <em>"If \(\text{AUC} = 0.94\), my probabilities must be accurate!"</em>—or its opposite: <em>"If my probabilities match the true average, my model must be smart!"</em> Both are false! Suppose \(4\) of \(8\) clinic patients are sick (\(50\%\) overall):
+      </p>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Model Archetype</th>
+            <th>Cat 1: Discrimination</th>
+            <th>Cat 2: Calibration</th>
+            <th>Real-World Verdict</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>A. Sharp &amp; Honest GLM</strong><br><span style="font-size:0.8rem;color:var(--ink-muted)">Buckets avg \(0.25\) &amp; \(0.75\); sick rates \(1/4\) &amp; \(3/4\)</span></td>
+            <td class="good-val">High (\(\text{AUC}=0.938\))</td>
+            <td class="good-val">Honest (\(\text{ECE}=0.000\))</td>
+            <td><strong>Gold standard:</strong> separates sick from healthy <em>and</em> gives trustworthy risk numbers for clinical/pricing math.</td>
+          </tr>
+          <tr>
+            <td><strong>B. Squashed Ranker (\(\div 5\))</strong><br><span style="font-size:0.8rem;color:var(--ink-muted)">Predicts \(0.05\) &amp; \(0.15\) instead of \(0.25\) &amp; \(0.75\)</span></td>
+            <td class="good-val">High (\(\text{AUC}=0.938\))</td>
+            <td class="bad-val">Broken (\(\text{ECE}=0.400\))</td>
+            <td><strong>Good sorter, dangerous liar:</strong> fine for sorting a top-10 queue, disastrous if a doctor trusts "\(15\%\) risk" when \(75\%\) are sick!</td>
+          </tr>
+          <tr>
+            <td><strong>C. Constant \(0.50\) Shrug</strong><br><span style="font-size:0.8rem;color:var(--ink-muted)">Predicts \(0.50\) for all 8 patients</span></td>
+            <td class="bad-val">Zero (\(\text{AUC}=0.500\))</td>
+            <td class="good-val">Honest (\(\text{ECE}=0.000\))</td>
+            <td><strong>Honest but useless:</strong> saying "\(50\%\)" when half are sick is 100% calibrated, yet separates nobody!</td>
+          </tr>
+          <tr>
+            <td><strong>D. Overconfident (\(0.01 / 0.99\))</strong><br><span style="font-size:0.8rem;color:var(--ink-muted)">Exaggerates \(25\%\to 1\%\) and \(75\%\to 99\%\)</span></td>
+            <td class="good-val">High (\(\text{AUC}=0.938\))</td>
+            <td class="bad-val">Extreme (\(\text{ECE}=0.238\))</td>
+            <td><strong>Hidden Log-Loss bomb:</strong> AUC and Accuracy@\(0.50\) look great, but one wrong \(99\%\) bet ruins financial/medical decisions!</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>How Numeric AUC Values Classify Discrimination Strength</h3>
+      <p>
+        Within <strong>Category 1 (Discrimination)</strong>, applied logistic regression uses a standard rough scale
+        <a class="cite" href="https://doi.org/10.1002/9781118548387" target="_blank" rel="noopener">Hosmer, Lemeshow &amp; Sturdivant, 2013, p. 177</a>—always paired with domain common sense:
+      </p>
+      <ul>
+        <li><strong>\(\text{AUC} = 0.50\): No discrimination</strong> (blind coin flip or constant score; \(&lt;0.50\) means predictions point backward!).</li>
+        <li><strong>\(0.50 &lt; \text{AUC} &lt; 0.70\): Weak separation</strong> (heavy overlap—though in noisy fields like finance or ad clicks, \(0.60\) can still earn millions).</li>
+        <li><strong>\(0.70 \le \text{AUC} &lt; 0.80\): Acceptable / useful separation</strong> (typical solid clinical or credit-risk GLM).</li>
+        <li><strong>\(0.80 \le \text{AUC} &lt; 0.90\): Strong separation</strong>; <strong>\(\ge 0.90\): Outstanding separation</strong> <em>(Tip: if \(\text{AUC} &gt; 0.99\) on messy human data, check first whether the answer leaked into your input columns!)</em>.</li>
+      </ul>
+    </section>
+
+    <section id="taxonomy-lab">
+      <h2>3. Interactive 4-Category Performance Lab (8 Clinic Patients)</h2>
+      <div class="widget" data-taxonomy-lab>
+        <div class="widget-header">
+          <p class="widget-title">Switch Model Archetypes &amp; Drag Cutoff \(t\) Across All 4 Categories</p>
+          <div class="tab-group" role="tablist" style="flex-wrap:wrap">
+            <button class="tab-btn" type="button" data-archetype="ideal" aria-selected="true">1. Sharp &amp; Honest GLM</button>
+            <button class="tab-btn" type="button" data-archetype="squashed" aria-selected="false">2. Squashed ÷ 5</button>
+            <button class="tab-btn" type="button" data-archetype="climatology" aria-selected="false">3. Constant 0.50</button>
+            <button class="tab-btn" type="button" data-archetype="overconfident" aria-selected="false">4. Overconfident 0.01/0.99</button>
+          </div>
+        </div>
+
+        <div class="controls-row">
+          <div class="control-box">
+            <label><span>Category 4 Action Cutoff \(t\) (flag if \(s_i \ge t\))</span> <span data-tax-cutoff-val>0.50</span></label>
+            <input type="range" data-tax-cutoff min="0" max="1" step="0.02" value="0.50">
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin:0 0 1rem">
+          <div class="stage-box" data-cat-1></div>
+          <div class="stage-box" data-cat-2></div>
+          <div class="stage-box" data-cat-3></div>
+          <div class="stage-box" data-cat-4></div>
+        </div>
+
+        <div class="svg-wrap" style="margin:0 0 0.85rem">
+          <svg data-tax-strip-svg viewBox="0 0 680 122" aria-label="8 clinic patients plotted as orange circles (0) and purple x-squares (1) along [0.0, 1.0]"></svg>
+        </div>
+
+        <div class="grid-2" style="margin:0 0 0.85rem">
+          <div class="svg-wrap" style="margin:0">
+            <svg data-tax-roc-svg viewBox="0 0 320 265" aria-label="Category 1 ROC curve"></svg>
+          </div>
+          <div class="svg-wrap" style="margin:0">
+            <svg data-tax-cal-svg viewBox="0 0 320 265" aria-label="Category 2 calibration curve"></svg>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto">
+          <table class="data-table" data-tax-rows style="margin:0.4rem 0 0.7rem;font-size:0.82rem"></table>
+        </div>
+
+        <p data-tax-note style="font-size:0.84rem;color:var(--ink-muted);margin:0;max-width:none"></p>
+      </div>
+    </section>
+
+    <section id="glm-workflow">
+      <h2>4. How All Four Categories Connect to Generalized Linear Models</h2>
+      <p>
+        Now the entire GLM workflow clicks into one logical pipeline:
+      </p>
+      <ol>
+        <li><strong>During Fitting (Category 3 \(\to\) Category 2):</strong> Logistic Regression estimates \(\hat{\beta}\) by minimizing <strong>Residual Deviance</strong> \(D = 2n \times \text{Log-Loss}\) (<a href="../reference/estimation-and-deviance-reference.html">EDF &amp; Deviance Reference</a>). Because Log-Loss is a <em>strictly proper scoring rule</em>
+          <a class="cite" href="https://doi.org/10.1198/016214506000001437" target="_blank" rel="noopener">Gneiting &amp; Raftery, 2007</a>,
+          fitting a well-specified GLM automatically pushes predicted means \(\hat{\mu}_i\) toward <strong>honest Calibration</strong> (for instance, with an intercept, average predicted probability equals the exact sample event rate!).</li>
+        <li><strong>During Model Comparison (Category 1 + Category 2):</strong> Report <strong>ROC-AUC</strong> (or <strong>PR-AUC</strong> for rare events) to measure separation power, <em>plus</em> a <strong>Calibration Curve / Log-Loss</strong> check to confirm the probabilities themselves remain trustworthy.</li>
+        <li><strong>At Business Deployment (Category 4):</strong> Only when an action is required (block a card, order a biopsy) do you pick a cutoff \(t\) based on the real-world cost of a False Alarm vs. a Missed Case—and report <strong>Recall, Precision, or Net Benefit</strong> at that chosen \(t\).</li>
+      </ol>
+    </section>
+
+    <section id="practice">
+      <h2>5. Skill Practice: Instant Feedback Loop</h2>
+
+      <h3>Part A · Concrete 4-Patient Calibration &amp; Brier Check</h3>
+      <p>
+        Suppose a model assigns predicted risk \(s_i = 0.25\) to each of <strong>4 patients</strong> in a low-risk group, and their true outcomes turn out to be <code>0, 0, 0, 1</code>. Compute each value by hand and click <strong>Check</strong>:
+      </p>
+
+      <div class="numeric-grid" style="font-family:var(--sans)">
+        <div class="numeric-field" data-numeric-check data-answer="0.25" data-tolerance="0.005"
+             data-ok="Exact! \(1\) sick patient out of \(4\) gives an observed sick fraction of \(1/4 = 0.25\)."
+             data-hint="Count how many of the 4 outcomes equal \(1\), and divide by \(4\).">
+          <label>1. Actual sick fraction in this group</label>
+          <div class="numeric-row">
+            <input type="text" placeholder="e.g. 0.25">
+            <button class="btn btn-primary" type="button">Check</button>
+          </div>
+          <div class="numeric-status"></div>
+        </div>
+
+        <div class="numeric-field" data-numeric-check data-answer="0" data-tolerance="0.005"
+             data-ok="Spot on! Predicted \(0.25\) minus observed \(0.25\) equals \(0\)—this bucket sits right on the 45° calibration line!"
+             data-hint="Compute \(|\text{Predicted } 0.25 - \text{Actual fraction } 0.25|\).">
+          <label>2. Bucket calibration gap \(|\text{Pred} - \text{Actual}|\)</label>
+          <div class="numeric-row">
+            <input type="text" placeholder="e.g. 0.00">
+            <button class="btn btn-primary" type="button">Check</button>
+          </div>
+          <div class="numeric-status"></div>
+        </div>
+
+        <div class="numeric-field" data-numeric-check data-answer="0.1875" data-tolerance="0.006"
+             data-ok="Right! Three \(0\)s give \(3\times(0-0.25)^2 = 0.1875\), one \(1\) gives \((1-0.25)^2 = 0.5625\); average \(= 0.75/4 = 0.1875\) (beating coin-flip \(0.25\))."
+             data-hint="Average the 4 squared errors \((y_i - 0.25)^2\): three \((0 - 0.25)^2 = 0.0625\) plus one \((1 - 0.25)^2 = 0.5625\), divided by 4.">
+          <label>3. Brier Score \(\frac{1}{4}\sum (y_i - 0.25)^2\)</label>
+          <div class="numeric-row">
+            <input type="text" placeholder="e.g. 0.1875">
+            <button class="btn btn-primary" type="button">Check</button>
+          </div>
+          <div class="numeric-status"></div>
+        </div>
+      </div>
+
+      <h3>Part B · Retrieval Quiz</h3>
+      <div data-quiz>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;font-family:var(--sans);font-size:0.85rem">
+          <span data-quiz-score style="font-weight:700;color:var(--accent)">0 / 4 answered correctly</span>
+          <button class="btn" type="button" data-quiz-reset>Reset Quiz</button>
+        </div>
+
+        <div class="quiz-item" data-correct="1"
+             data-explain-ok="Correct! Predicting \(0.50\) every day in a \(50\%\)-rain city matches the true long-run frequency (perfect calibration), yet never separates rainy days from sunny days (\(\text{AUC} = 0.50\), zero discrimination).">
+          <p class="quiz-q">1. In a city where it rains on 50% of days, a lazy forecaster predicts 0.50 every single day. How do we classify its performance?</p>
+          <div class="quiz-options">
+            <button class="quiz-opt" type="button" data-why="Constant \(0.50\) ties every rainy/sunny pair (\(\text{AUC}=0.50\)), and its \(50\%\) prediction actually matches the \(50\%\) rain rate!">Strong discrimination, yet poor probability calibration.</button>
+            <button class="quiz-opt" type="button">Zero discrimination, yet honest probability calibration.</button>
+            <button class="quiz-opt" type="button" data-why="Constant \(0.50\) has zero discrimination (\(\text{AUC}=0.50\)), not strong discrimination.">Strong discrimination, plus optimal overall calibration.</button>
+            <button class="quiz-opt" type="button" data-why="When it rains \(50\%\) of the time, saying \(0.50\) is actually perfectly calibrated!">Zero discrimination, and broken probability calibration.</button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-item" data-correct="3"
+             data-explain-ok="Correct! Because \(0.09 &gt; 0.01\) on every \((1,0)\) pair, discrimination is a perfect \(\text{AUC} = 1.00\), yet saying &quot;\(9\%\) chance&quot; for events that happen \(100\%\) of the time is severely miscalibrated.">
+          <p class="quiz-q">2. A model predicts 0.01 for every healthy patient (0) and 0.09 for every sick patient (1). Which performance category breaks?</p>
+          <div class="quiz-options">
+            <button class="quiz-opt" type="button" data-why="Pairwise discrimination only checks whether \(0.09 &gt; 0.01\)—so \(\text{AUC} = 1.00\) succeeds completely!">Pairwise discrimination fails since values stay small.</button>
+            <button class="quiz-opt" type="button" data-why="Relative ordering is \(100\%\) intact because every sick patient (\(0.09\)) still outranks every healthy patient (\(0.01\)).">Relative ordering fails because scores stay minuscule.</button>
+            <button class="quiz-opt" type="button" data-why="Threshold-free ranking (\(\text{AUC}\)) hits \(1.00\) here; it is probability honesty (calibration) that fails.">Threshold-free ranking fails across tiny risk numbers.</button>
+            <button class="quiz-opt" type="button">Calibration fails even though discrimination hits one.</button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-item" data-correct="0"
+             data-explain-ok="Correct! Overall proper scoring rules—Log-Loss (\(= \text{GLM Deviance}/2n\)) and Brier Score—penalize both poor separation and dishonest probability scaling.">
+          <p class="quiz-q">3. Which category of metrics achieves a strong score ONLY when a model has both good discrimination and honest calibration?</p>
+          <div class="quiz-options">
+            <button class="quiz-opt" type="button">Overall probabilistic scores like Log-Loss and Brier.</button>
+            <button class="quiz-opt" type="button" data-why="ROC-AUC can hit \(1.00\) even when probabilities are divided by \(10\) and badly miscalibrated.">Threshold-free rank metrics like standard ROC curves.</button>
+            <button class="quiz-opt" type="button" data-why="Precision and Recall evaluate hard labels at a single cutoff \(t\), not probability calibration across buckets.">Single-cutoff label counts like Precision and Recall.</button>
+            <button class="quiz-opt" type="button" data-why="A calibration curve alone passes a constant \(0.50\) predictor even when discrimination is zero!">Calibration curves checking average bucket rates now.</button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-item" data-correct="2"
+             data-explain-ok="Correct! Accuracy, Recall, FPR, and Precision live in Category 4: they evaluate the joint behavior of your risk scores plus one specific action threshold \(t\).">
+          <p class="quiz-q">4. In our 4-category map of model performance, where do Accuracy, Precision, and Recall belong?</p>
+          <div class="quiz-options">
+            <button class="quiz-opt" type="button" data-why="Threshold-free pairwise ranking is Category 1 (ROC-AUC), whereas Accuracy/Precision/Recall require a fixed cutoff \(t\).">Threshold-free ranking across every possible sample pair.</button>
+            <button class="quiz-opt" type="button" data-why="Pure probability honesty is Category 2 (Calibration), whereas hard-label counts depend on a cutoff \(t\).">Pure calibration checking whether risk matches frequency.</button>
+            <button class="quiz-opt" type="button">Cutoff-specific rules combining risk scores with cutoffs.</button>
+            <button class="quiz-opt" type="button" data-why="Minimizing deviance / Log-Loss during GLM fitting belongs to Category 3 (Overall probabilistic fit), without any cutoff.">Likelihood fitting minimizing deviance across raw scores.</button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+      </div>
+      <p style="font-size:0.88rem;color:var(--ink-muted);margin-top:1rem">
+        Next: review the one-page summary in the <a href="../reference/evaluation-metrics-reference.html"><strong>Evaluation Metrics &amp; 4-Part Performance Taxonomy Cheat Sheet</strong></a>.
+      </p>
+    </section>
+
+    <section id="reading">
+      <h2>6. Recommended Primary Source Reading</h2>
+      <div class="card">
+        <h3>Read Next (12 minutes): Ewout W. Steyerberg et al. (2010) — <em>"Assessing the performance of prediction models: a framework for traditional and novel measures"</em></h3>
+        <p>
+          Open <a href="https://doi.org/10.1097/EDE.0b013e3181c30fb2" target="_blank" rel="noopener">Steyerberg et al. (2010), <em>Epidemiology</em>, 21(1), 128–138</a> (free full text also on PubMed Central: <code>PMC3575184</code>).
+        </p>
+        <p style="margin-bottom:0">
+          <strong>What to look for while reading:</strong> Look directly at <strong>Table 1</strong> and <strong>Figure 1</strong>: you will see the exact architecture you just practiced—<em>Overall Performance</em> (Brier / \(R^2\)), <em>Discrimination</em> (\(c\)-statistic / ROC-AUC), <em>Calibration</em> (calibration slope &amp; plot), and <em>Clinical Usefulness</em> at decision thresholds!
+        </p>
+      </div>
+    </section>
+
+    <footer class="lesson-footer">
+      GLM Learning Workspace · Lesson 0003 (Evaluation Metrics Track) · References:
+      <a href="0002-why-auc-beats-accuracy.html">Lesson 0002 (AUC vs. Accuracy)</a> ·
+      <a href="../reference/evaluation-metrics-reference.html">Metrics Cheat Sheet</a> ·
+      <a href="../index.html">Course Hub</a>
+    </footer>
+  </main>
+
+  <script src="../assets/vendor/katex/0.19.1/katex.min.js"></script>
+  <script src="../assets/vendor/katex/0.19.1/contrib/auto-render.min.js"></script>
+  <script src="../assets/math.js"></script>
+  <script src="../assets/performance-taxonomy-lab.js"></script>
+  <script src="../assets/quiz.js"></script>
+</body>
+</html>

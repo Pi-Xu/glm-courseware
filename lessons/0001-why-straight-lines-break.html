@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson 0001 — Why Straight Lines Break (and the 3-Part GLM Fix)</title>
+  <link rel="stylesheet" href="../assets/vendor/katex/0.19.1/katex.min.css">
+  <link rel="stylesheet" href="../assets/teaching.css">
+</head>
+<body>
+  <nav class="topbar">
+    <div class="topbar-inner">
+      <a class="topbar-brand" href="../index.html">GLM Learning Workspace</a>
+      <div class="topbar-nav">
+        <a href="0001-why-straight-lines-break.html" aria-current="page">Lesson 1</a>
+        <a href="0002-why-auc-beats-accuracy.html">Metrics 1: AUC</a>
+        <a href="0003-model-performance-taxonomy.html">Metrics 2: Taxonomy</a>
+        <a href="../reference/evaluation-metrics-reference.html">Metrics Guide</a>
+        <a href="../reference/prerequisites-primer.html">Prerequisites</a>
+        <a href="../reference/glm-blueprint-cheatsheet.html">GLM Blueprint</a>
+        <a href="../reference/estimation-and-deviance-reference.html">EDF, IRLS &amp; Deviance</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <header class="lesson-header">
+      <p class="eyebrow">Lesson 0001 · Foundations of Generalized Linear Models</p>
+      <h1>Why Straight Lines Break—and the Three-Part GLM Fix</h1>
+      <p class="subtitle">
+        Before touching exponential-family algebra, let’s watch Ordinary Least Squares (OLS) fail on two 4-row datasets—and see the exact surgical change that invents Generalized Linear Models.
+      </p>
+      <div class="meta-strip">
+        <span class="badge">~10 min interactive lesson</span>
+        <span class="badge">Foundation: <a href="../reference/prerequisites-primer.html">Prerequisites Primer</a></span>
+      </div>
+    </header>
+
+    <section id="problem">
+      <h2>1. Two Tiny Datasets Where Ordinary Linear Regression Breaks</h2>
+      <p>
+        Ordinary linear regression models each observation as a straight line plus constant-variance Gaussian noise
+        <a class="cite" href="https://grodri.github.io/glms/notes/a2.pdf" target="_blank" rel="noopener">Rodríguez, App. B §B.1</a>:
+      </p>
+      \[
+        Y_i = \mu_i + \epsilon_i, \qquad \mu_i = \beta_0 + \beta_1 x_i, \qquad \epsilon_i \sim \mathcal{N}(0, \sigma^2).
+      \]
+      <p>
+        Let’s fit that exact OLS straight line to two tiny 4-observation datasets with small numbers. Look closely at the rightmost column in each table:
+      </p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Dataset A: Binary Pass / Fail</h3>
+          <p style="font-size:0.9rem;color:var(--ink-muted)">Study hours \(x_i\) vs. passing an exam \(y_i \in \{0, 1\}\). Exact OLS fit: \(\hat{\mu}_i = -0.088 + 0.147\,x_i\).</p>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th class="num">Hours \(x_i\)</th>
+                <th class="num">Outcome \(y_i\)</th>
+                <th class="num">OLS \(\hat{\mu}_i\)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>1</td><td class="num">0</td><td class="num">0</td><td class="num bad-val">−0.09</td></tr>
+              <tr><td>2</td><td class="num">3</td><td class="num">0</td><td class="num">0.35</td></tr>
+              <tr><td>3</td><td class="num">5</td><td class="num">1</td><td class="num">0.65</td></tr>
+              <tr><td>4</td><td class="num">8</td><td class="num">1</td><td class="num bad-val">1.09</td></tr>
+            </tbody>
+          </table>
+          <p style="font-size:0.88rem;margin-bottom:0">
+            Under \(\{0,1\}\) coding, \(E[Y_i \mid x_i] = 0\cdot P(0\mid x_i) + 1\cdot P(1\mid x_i) = P(Y_i = 1 \mid x_i)\) is a <strong>probability</strong> (see <a href="../reference/prerequisites-primer.html#expectation-variance">Prerequisites §2</a>). Yet OLS predicts a <strong>−9%</strong> chance at \(x=0\) and a <strong>109%</strong> chance at \(x=8\)!
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>Dataset B: Rainy-Day Walk-Ins</h3>
+          <p style="font-size:0.9rem;color:var(--ink-muted)">Rain index \(x_i\) vs. café customers \(y_i \in \{0,1,2,\dots\}\) in 10 min. Exact OLS fit: \(\hat{\mu}_i = 5.02 - 1.12\,x_i\).</p>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Slot</th>
+                <th class="num">Rain \(x_i\)</th>
+                <th class="num">Count \(y_i\)</th>
+                <th class="num">OLS \(\hat{\mu}_i\)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>1</td><td class="num">0</td><td class="num">6</td><td class="num">5.02</td></tr>
+              <tr><td>2</td><td class="num">1</td><td class="num">3</td><td class="num">3.90</td></tr>
+              <tr><td>3</td><td class="num">3</td><td class="num">1</td><td class="num">1.66</td></tr>
+              <tr><td>4</td><td class="num">5</td><td class="num">0</td><td class="num bad-val">−0.58</td></tr>
+            </tbody>
+          </table>
+          <p style="font-size:0.88rem;margin-bottom:0">
+            Customer counts cannot be negative, so the average count \(\mu_i = E[Y_i \mid x_i]\) must stay strictly above \(0\). In heavy rain (\(x=5\)), OLS predicts <strong>−0.58 customers</strong>!
+          </p>
+        </div>
+      </div>
+
+      <p>
+        Notice that <strong>two separate assumptions</strong> fail at the same time:
+      </p>
+      <ol>
+        <li>
+          <strong>Broken Mean Range (Systematic mismatch):</strong> Any non-flat line \(\beta_0 + \beta_1 x_i\) eventually crosses below \(0\) and above \(1\), whereas probabilities live in \((0,1)\) and expected counts live in \((0, +\infty)\).
+        </li>
+        <li>
+          <strong>Broken Constant-Variance Rule (Stochastic mismatch):</strong> OLS assumes constant variance \(\operatorname{Var}(Y_i \mid x_i) = \sigma^2\) everywhere (<em>homoscedasticity</em>). In reality, non-Normal data have built-in <em>heteroscedasticity</em>:
+          <ul>
+            <li>For binary outcomes \(Y_i \sim \operatorname{Bernoulli}(\mu_i)\), \(\operatorname{Var}(Y_i \mid x_i) = \mu_i(1-\mu_i)\). At \(\mu_i = 0.50\), variance is \(0.25\); at \(\mu_i = 0.99\), variance drops \(25\times\) to \(0.0099\) because outcomes are almost always \(1\).</li>
+            <li>For Poisson counts \(Y_i \sim \operatorname{Poisson}(\mu_i)\), \(\operatorname{Var}(Y_i \mid x_i) = \mu_i\). Busy hours with mean \(25\) vary much more (\(\text{SD} = 5\)) than quiet hours with mean \(1\) (\(\text{SD} = 1\)).</li>
+          </ul>
+        </li>
+      </ol>
+    </section>
+
+    <section id="trap">
+      <h2>2. The Classic Trap: Why Not Just Transform the Data \(y_i\)?</h2>
+      <p>
+        A natural first instinct on Dataset B is: <em>“Counts must be positive—why don’t we just take \(\log(y_i)\) and run ordinary linear regression?”</em>
+      </p>
+      <p>
+        Try it on Row 4 of Dataset B (\(x_4 = 5,\; y_4 = 0\)):
+      </p>
+      \[
+        \log(y_4) = \log(0) = -\infty \quad\text{(crashes immediately!)}
+      \]
+      <p>
+        On Dataset A (\(y_i \in \{0, 1\}\)), trying to apply the logit transform \(\log\!\left(\frac{y_i}{1 - y_i}\right)\) (where \(\log \equiv \ln\), natural log base \(e\)) to raw outcomes gives \(\log(0) = -\infty\) when \(y_i=0\) and \(\log(1/0) = +\infty\) when \(y_i=1\)—<strong>every single row blows up</strong>! And even when counts are strictly positive—say \(Y \in \{1, 9\}\) with probability \(0.5\) each—regressing \(\log(Y)\) models \(E[\log Y] = 0.5\log 1 + 0.5\log 9 = \log 3 \approx 1.10\) (exponentiating back to \(3\)), which by <strong>Jensen’s inequality</strong> underestimates \(\log(E[Y]) = \log 5 \approx 1.61\)
+        <a class="cite" href="https://grodri.github.io/glms/notes/a2.pdf" target="_blank" rel="noopener">Rodríguez, App. B p. 3</a>
+        (<a href="../reference/prerequisites-primer.html#jensen">Prerequisites §4</a>).
+      </p>
+
+      <div class="callout">
+        <div class="callout-title">The Core GLM Insight (Nelder &amp; Wedderburn, 1972)</div>
+        <p>
+          <strong>Do not transform the raw response \(Y_i\); transform its conditional mean \(\mu_i = E[Y_i \mid x_i]\).</strong>
+          In Dataset B at \(x_4 = 5\), the observed count is \(y_4 = 0\), which is a completely valid draw from a Poisson distribution with linear predictor \(\eta_4 = 1.80 - 0.65(5) = -1.45\) and expected count \(\mu_4 = e^{-1.45} \approx 0.235 &gt; 0\)—so \(\log(\mu_4) = -1.45\) is finite and well-behaved!
+        </p>
+      </div>
+    </section>
+
+    <section id="blueprint">
+      <h2>3. The Three-Part GLM Blueprint &amp; Interactive Explorer</h2>
+      <p>
+        John Nelder and Robert Wedderburn unified linear, logistic, and Poisson regression into a single architecture with three modular parts
+        <a class="cite" href="https://doi.org/10.2307/2344614" target="_blank" rel="noopener">Nelder &amp; Wedderburn, 1972</a>
+        <a class="cite" href="https://doi.org/10.1201/9780203753736" target="_blank" rel="noopener">McCullagh &amp; Nelder, 1989, Ch. 2</a>
+        (summarized on your one-page <a href="../reference/glm-blueprint-cheatsheet.html">GLM Blueprint Sheet</a>):
+      </p>
+      <ol>
+        <li><strong>Random Component:</strong> Choose a distribution for \(Y_i \mid x_i\) (Bernoulli, Poisson, Normal, Gamma, …) that matches the outcome type and fixes how \(\operatorname{Var}(Y_i \mid x_i)\) depends on \(\mu_i\).</li>
+        <li><strong>Systematic Component (Linear Predictor):</strong> Combine covariates linearly as \(\eta_i = x_i^\top \beta\) on the unrestricted real line \((-\infty, +\infty)\).</li>
+        <li><strong>Link Function:</strong> Choose a smooth, invertible bridge \(g(\mu_i) = \eta_i\)—equivalently \(\mu_i = g^{-1}(\eta_i)\)—mapping the restricted domain of \(\mu_i\) onto \((-\infty, +\infty)\).</li>
+      </ol>
+
+      <div class="callout">
+        <div class="callout-title">Scale Translation: Additive on \(\eta_i\) \(\Longleftrightarrow\) Multiplicative on \(\mu_i\) (or Odds)</div>
+        <p>
+          Under a log link \(\log(\mu_i) = \beta_0 + \beta_1 x_i\), increasing \(x_i\) by \(+1\) <strong>adds \(\beta_1\)</strong> to \(\log(\mu_i)\), which <strong>multiplies the expected count \(\mu_i = e^{\beta_0 + \beta_1 x_i}\) by \(e^{\beta_1}\)</strong> (since \(e^{\eta_i + \beta_1} = e^{\eta_i}\cdot e^{\beta_1}\)). Under a logit link, \(+1\) in \(x_i\) adds \(\beta_1\) to log-odds and multiplies the odds \(\frac{\mu_i}{1-\mu_i}\) by \(e^{\beta_1}\).
+        </p>
+      </div>
+
+      <div class="widget" data-glm-playground>
+        <div class="widget-header">
+          <p class="widget-title">Interactive Lab: Watch \(\eta \to \mu \to \operatorname{Var}(Y \mid x)\) vs. OLS</p>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
+            <div class="tab-group" role="tablist">
+              <button class="tab-btn" type="button" data-scenario="binary" aria-selected="true">Dataset A: Binary (Logit)</button>
+              <button class="tab-btn" type="button" data-scenario="poisson" aria-selected="false">Dataset B: Counts (Log)</button>
+            </div>
+            <button class="btn" type="button" data-reset-params>Reset Sliders</button>
+          </div>
+        </div>
+
+        <div class="controls-row">
+          <div class="control-box">
+            <label><span>Intercept \(\beta_0\)</span> <span data-b0-val>-3.60</span></label>
+            <input type="range" data-b0 min="-5" max="1" step="0.1" value="-3.6">
+          </div>
+          <div class="control-box">
+            <label><span>Slope \(\beta_1\)</span> <span data-b1-val>0.90</span></label>
+            <input type="range" data-b1 min="0.1" max="1.8" step="0.05" value="0.90">
+          </div>
+          <div class="control-box">
+            <label><span>Probe predictor \(x^*\)</span> <span data-probe-val>0.0</span></label>
+            <input type="range" data-probe min="0" max="8.5" step="0.5" value="0.0">
+          </div>
+        </div>
+
+        <div class="svg-wrap">
+          <svg viewBox="0 0 680 320" aria-label="OLS straight line versus GLM mean curve and 1 SD band"></svg>
+        </div>
+
+        <div class="pipeline-strip">
+          <div class="stage-box" data-stage-1></div>
+          <div class="stage-box" data-stage-2></div>
+          <div class="stage-box" data-stage-3></div>
+        </div>
+        <p style="font-size:0.82rem;color:var(--ink-muted);margin:0.75rem 0 0;max-width:none">
+          <strong>Try this (30 seconds):</strong>
+          (1) On <em>Dataset A</em>, drag \(x^*\) from \(4.0\) to \(8.5\): watch OLS cross into the pink forbidden zone (\(&gt;1\)), while the teal GLM curve flattens smoothly below \(1\) and its shaded \(\pm 1\text{ SD}\) band (\(\sqrt{\mu(1-\mu)}\); note raw binary draws still jump to \(0\) or \(1\)) pinches narrower!
+          (2) Switch to <em>Dataset B</em> at \(x^* = 5.0\): see how OLS predicts negative customers (\(-0.58\)) while the Poisson GLM predicts \(\mu \approx 0.235 &gt; 0\) with small spread.
+        </p>
+      </div>
+    </section>
+
+    <section id="practice">
+      <h2>4. Skill Practice: Instant Feedback Loop</h2>
+
+      <h3>Part A · Concrete Hand-Calculation Check</h3>
+      <p>
+        Suppose we fit a <strong>logistic regression</strong> (Bernoulli random component + logit link \(\log\frac{\mu_i}{1-\mu_i} = \eta_i\)) with \(\beta_0 = -2.0\) and \(\beta_1 = 1.0\). A student studies \(x_i = 2\) hours. Compute each stage by hand and click <strong>Check</strong>:
+      </p>
+
+      <div class="numeric-grid" style="font-family:var(--sans)">
+        <div class="numeric-field" data-numeric-check data-answer="0" data-tolerance="0.001"
+             data-ok="Exact! \(\eta_i = -2.0 + 1.0(2) = 0\)."
+             data-hint="Substitute \(x_i = 2\) into \(\eta_i = \beta_0 + \beta_1 x_i = -2.0 + 1.0(2)\).">
+          <label>1. Linear predictor \(\eta_i\)</label>
+          <div class="numeric-row">
+            <input type="text" placeholder="e.g. 0.0">
+            <button class="btn btn-primary" type="button">Check</button>
+          </div>
+          <div class="numeric-status"></div>
+        </div>
+
+        <div class="numeric-field" data-numeric-check data-answer="0.5" data-tolerance="0.01"
+             data-ok="Right! \(\mu_i = \frac{1}{1 + e^{-0}} = \frac{1}{2} = 0.50\) (log-odds of 0 always means 50% probability)."
+             data-hint="Apply the inverse logit \(\mu_i = \frac{1}{1 + e^{-\eta_i}}\) at \(\eta_i = 0\), using \(e^0 = 1\).">
+          <label>2. Conditional mean \(\mu_i\)</label>
+          <div class="numeric-row">
+            <input type="text" placeholder="e.g. 0.50">
+            <button class="btn btn-primary" type="button">Check</button>
+          </div>
+          <div class="numeric-status"></div>
+        </div>
+
+        <div class="numeric-field" data-numeric-check data-answer="0.25" data-tolerance="0.005"
+             data-ok="Spot on! \(\operatorname{Var}(Y_i \mid x_i=2) = 0.50 \times (1 - 0.50) = 0.25\), the maximum possible Bernoulli variance."
+             data-hint="For a Bernoulli outcome, \(\operatorname{Var}(Y_i \mid x_i) = \mu_i(1 - \mu_i)\).">
+          <label>3. Variance \(\operatorname{Var}(Y_i \mid x_i = 2)\)</label>
+          <div class="numeric-row">
+            <input type="text" placeholder="e.g. 0.25">
+            <button class="btn btn-primary" type="button">Check</button>
+          </div>
+          <div class="numeric-status"></div>
+        </div>
+      </div>
+
+      <h3>Part B · Retrieval Quiz (No Peeking Above!)</h3>
+      <div data-quiz>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;font-family:var(--sans);font-size:0.85rem">
+          <span data-quiz-score style="font-weight:700;color:var(--accent)">0 / 4 answered correctly</span>
+          <button class="btn" type="button" data-quiz-reset>Reset Quiz</button>
+        </div>
+
+        <div class="quiz-item" data-correct="1"
+             data-explain-ok="Correct! In a Poisson GLM, \(\mu_i = E[Y_i \mid x_i] = e^{\eta_i}\) stays strictly positive so \(\log(\mu_i)\) is always defined, even at observations where the realized count is \(y_i = 0\).">
+          <p class="quiz-q">1. On count data containing zeros (\(y_i = 0\)), why does a Poisson GLM use \(\log(\mu_i) = \eta_i\) instead of regressing \(\log(y_i)\) on \(x_i\)?</p>
+          <div class="quiz-options">
+            <button class="quiz-opt" type="button" data-why="Observed counts can be zero (not strictly positive), and \(\log(\mu_i)\) does not break because \(\mu_i &gt; 0\).">Raw counts stay positive, and \(\log(\mu_i)\) breaks when \(y_i = 0\).</button>
+            <button class="quiz-opt" type="button">Mean values stay positive, and \(\log(y_i)\) breaks when \(y_i = 0\).</button>
+            <button class="quiz-opt" type="button" data-why="Poisson counts do not have normal additive error terms, and \(\log(\mu_i)\) keeps zero-count rows cleanly in the likelihood.">Error terms stay normal, while \(\log(\mu_i)\) drops when \(y_i = 0\).</button>
+            <button class="quiz-opt" type="button" data-why="Notice \(\exp(0) = 1\) does not break; it is \(\log(y_i)\) on raw data that blows up at \(y_i = 0\).">Fitted lines stay bounded, and \(\exp(y_i)\) breaks when \(y_i = 0\).</button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-item" data-correct="3"
+             data-explain-ok="Correct! Bernoulli variance is \(\mu(1-\mu)\): Alice gets \(0.50 \times 0.50 = 0.25\), while Bob gets \(0.90 \times 0.10 = 0.09\). Uncertainty peaks at \(50\%\).">
+          <p class="quiz-q">2. A logistic GLM predicts pass probability \(\mu = 0.50\) for Alice and \(\mu = 0.90\) for Bob. How do their conditional variances \(\operatorname{Var}(Y \mid x)\) compare?</p>
+          <div class="quiz-options">
+            <button class="quiz-opt" type="button" data-why="Higher mean increases variance in Poisson counts (\(\operatorname{Var}=\mu\)), not in binary outcomes near \(1\) (\(\operatorname{Var}=\mu(1-\mu)\)).">Bob gets larger variance since higher means magnify spread.</button>
+            <button class="quiz-opt" type="button" data-why="Constant variance belongs to Gaussian OLS, whereas Bernoulli variance depends on \(\mu\) through \(\mu(1-\mu)\).">Both share equal variance since model noise stays constant.</button>
+            <button class="quiz-opt" type="button" data-why="At \(\mu = 0.50\), the outcome flips between \(0\) and \(1\) most unpredictably, maximizing \(\mu(1-\mu) = 0.25\).">Alice gets lower variance since half chances center errors.</button>
+            <button class="quiz-opt" type="button">Alice gets larger variance since fifty percent varies most.</button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-item" data-correct="0"
+             data-explain-ok="Correct! The link function \(\eta_i = g(\mu_i)\) stretches the restricted domain of \(\mu_i\)—such as \((0,1)\) or \((0,\infty)\)—onto the entire real line \((-\infty, +\infty)\).">
+          <p class="quiz-q">3. Which component of a GLM directly bridges the gap between a restricted conditional mean \(\mu_i\) and an unrestricted linear predictor \(\eta_i \in (-\infty, +\infty)\)?</p>
+          <div class="quiz-options">
+            <button class="quiz-opt" type="button">The link function maps restricted means to real numbers.</button>
+            <button class="quiz-opt" type="button" data-why="The random component specifies the probability distribution of \(Y_i \mid x_i\), not the mapping onto \(\mathbb{R}\).">The error family maps observed outcomes to unit squares.</button>
+            <button class="quiz-opt" type="button" data-why="The linear predictor \(\eta_i = x_i^\top \beta\) already lives on \(\mathbb{R}\); it needs \(g^{-1}\) to map to valid means, not binary values.">The linear score maps unbounded slopes to binary values.</button>
+            <button class="quiz-opt" type="button" data-why="A scale/dispersion parameter scales variance; it does not map \(\mu_i\) to \(\eta_i\).">The scale factor maps constant spread to count integers.</button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-item" data-correct="2"
+             data-explain-ok="Correct! Because \(\log(\mu_i) = 1.0 + 0.5 x_i\), adding \(1\) to \(x_i\) adds \(0.5\) on the log-mean scale, which multiplies \(\mu_i = e^{1.0 + 0.5 x_i}\) by \(e^{0.5} \approx 1.65\).">
+          <p class="quiz-q">4. In a Poisson GLM with log link \(\log(\mu_i) = 1.0 + 0.5 x_i\), what happens when predictor \(x_i\) increases by \(1\) unit?</p>
+          <div class="quiz-options">
+            <button class="quiz-opt" type="button" data-why="You flipped the two scales! Linearity holds on the \(\log(\mu_i)\) scale, which becomes multiplication on the \(\mu_i\) scale.">Expected count adds \(0.5\), and log-mean multiplies by \(e^{0.5}\).</button>
+            <button class="quiz-opt" type="button" data-why="Observed counts are discrete integers, not deterministic shifts of \(0.5\); the model describes \(\log(\mu_i)\) and \(\mu_i\).">Observed count adds \(0.5\), and variance multiplies by \(e^{0.5}\).</button>
+            <button class="quiz-opt" type="button">Log-mean adds \(0.5\), and expected count multiplies by \(e^{0.5}\).</button>
+            <button class="quiz-opt" type="button" data-why="Expected error \(E[Y_i - \mu_i \mid x_i]\) is zero, and the baseline intercept \(\beta_0 = 1.0\) stays fixed.">Expected error adds \(0.5\), and baseline multiplies by \(e^{0.5}\).</button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="reading">
+      <h2>5. Recommended Primary Source Reading</h2>
+      <div class="card">
+        <h3>Read Next (10 minutes): Germán Rodríguez — <em>Appendix B: Generalized Linear Model Theory</em>, §B.1 (pp. 1–4)</h3>
+        <p>
+          Open <a href="https://grodri.github.io/glms/notes/a2.pdf" target="_blank" rel="noopener"><code>https://grodri.github.io/glms/notes/a2.pdf</code></a> and read only pages 1 to the top of page 4 (stop right before §B.2 Maximum Likelihood Estimation).
+        </p>
+        <p style="margin-bottom:0">
+          <strong>What to look for while reading:</strong> Notice how Rodríguez splits the generalization from OLS into two clean steps (§B.1.1 Exponential Family, §B.1.2 Link Function), and spot his exact paragraph on page 3 explaining why modeling \(\log \mu_i\) is fundamentally different from modeling \(\log y_i\). That short reading sets the stage directly for <strong>Lesson 2</strong>, where we unpack \(\exp\{(y_i\theta_i - b(\theta_i))/\phi + c(y_i,\phi)\}\) from scratch!
+        </p>
+      </div>
+    </section>
+
+    <footer class="lesson-footer">
+      GLM Learning Workspace · Lesson 0001 · References:
+      <a href="../reference/glm-blueprint-cheatsheet.html">GLM Blueprint Sheet</a> ·
+      <a href="../index.html">Course Hub</a>
+    </footer>
+  </main>
+
+  <script src="../assets/vendor/katex/0.19.1/katex.min.js"></script>
+  <script src="../assets/vendor/katex/0.19.1/contrib/auto-render.min.js"></script>
+  <script src="../assets/math.js"></script>
+  <script src="../assets/glm-playground.js"></script>
+  <script src="../assets/quiz.js"></script>
+</body>
+</html>

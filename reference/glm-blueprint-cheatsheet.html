@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Master GLM &amp; EDF Blueprint — Reference Sheet</title>
+  <link rel="stylesheet" href="../assets/vendor/katex/0.19.1/katex.min.css">
+  <link rel="stylesheet" href="../assets/teaching.css">
+</head>
+<body>
+  <nav class="topbar">
+    <div class="topbar-inner">
+      <a class="topbar-brand" href="../index.html">GLM Learning Workspace</a>
+      <div class="topbar-nav">
+        <a href="../lessons/0001-why-straight-lines-break.html">Lesson 1</a>
+        <a href="../lessons/0002-why-auc-beats-accuracy.html">Metrics 1: AUC</a>
+        <a href="../lessons/0003-model-performance-taxonomy.html">Metrics 2: Taxonomy</a>
+        <a href="evaluation-metrics-reference.html">Metrics Guide</a>
+        <a href="prerequisites-primer.html">Prerequisites</a>
+        <a href="glm-blueprint-cheatsheet.html" aria-current="page">GLM Blueprint</a>
+        <a href="estimation-and-deviance-reference.html">EDF, IRLS &amp; Deviance</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <header class="lesson-header">
+      <p class="eyebrow">Reference Document · Master Cheat Sheet</p>
+      <h1>The Three-Part GLM &amp; Exponential Family Blueprint</h1>
+      <p class="subtitle">
+        Compressed side-by-side reference uniting all five core GLM families across specification, exponential-family form, variance functions, and link choices.
+      </p>
+    </header>
+
+    <h2>1. Every GLM Has Three Pieces &amp; Four Connected Scales</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>1. Random Component</h3>
+        \[Y_i \mid x_i \sim \text{EDF}(\theta_i, \phi, p_i)\]
+        <p style="margin-bottom:0">Fixes valid outcomes \(\mathcal{Y}\), mean \(\mu_i = b'(\theta_i)\), and variance \(\operatorname{Var}(Y_i \mid x_i) = \frac{\phi}{p_i}V(\mu_i)\).</p>
+      </div>
+      <div class="card">
+        <h3>2. Systematic Component (\(p = \dim(\beta)\))</h3>
+        \[
+          \begin{aligned}
+            \eta_i &= x_i^\top \beta \\
+            &= \beta_0 + \beta_1 x_{i1} + \dots + \beta_{p-1} x_{i,p-1}
+          \end{aligned}
+        \]
+        <p style="margin-bottom:0">Combines \(p\) parameters (including intercept; \(\text{df}_{\text{resid}} = n - p\)) on \((-\infty, +\infty)\).</p>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:1.5rem">
+      <h3>3. Link Function &amp; Complete Parameter Chain</h3>
+      \[
+        \begin{gathered}
+          \beta \xrightarrow{\;X\beta\;} \eta_i \xrightarrow{\;g^{-1}\;} \mu_i = E[Y_i \mid x_i] \xrightarrow{\;(b')^{-1}\;} \theta_i \\[4pt]
+          \Big(\text{Canonical link } g = (b')^{-1} \implies \eta_i = \theta_i\Big)
+        \end{gathered}
+      \]
+      <p style="margin-bottom:0">
+        <strong>Golden rule:</strong> Transform the <em>expected value</em> \(g(\mu_i) = \eta_i\), <strong>never</strong> the raw data \(y_i\) (\(g(E[Y_i \mid x_i]) \neq E[g(Y_i)]\)).
+      </p>
+    </div>
+
+    <h2>2. Complete Master GLM &amp; Exponential Dispersion Family Table</h2>
+    <table class="data-table" style="font-size:0.83rem">
+      <thead>
+        <tr>
+          <th>Family &amp; Response</th>
+          <th>Scale \(a_i(\phi)=\frac{\phi}{p_i}\)</th>
+          <th>Canonical \(\theta_i\)</th>
+          <th>Cumulant \(b(\theta_i)\)</th>
+          <th>Mean \(\mu_i\) &amp; \(V(\mu_i)\)</th>
+          <th>Canonical vs. Common Link</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Normal</strong><br>\(y_i \in \mathbb{R}\)</td>
+          <td>\(\phi = \sigma^2\)<br>\(p_i = 1\)</td>
+          <td>\(\mu_i\)</td>
+          <td>\(\frac{1}{2}\theta_i^2\)</td>
+          <td>\(\mu_i \in \mathbb{R}\)<br>\(V(\mu_i) = 1\)</td>
+          <td><strong>Identity:</strong> \(\eta_i = \mu_i\)</td>
+        </tr>
+        <tr>
+          <td><strong>Bernoulli</strong><br>\(y_i \in \{0,1\}\)</td>
+          <td>\(\phi = 1\)<br>\(p_i = 1\)</td>
+          <td>\(\log\frac{\mu_i}{1-\mu_i}\)</td>
+          <td>\(\log(1+e^{\theta_i})\)</td>
+          <td>\(\mu_i \in (0,1)\)<br>\(V(\mu_i) = \mu_i(1-\mu_i)\)</td>
+          <td><strong>Logit</strong> (canonical);<br>Probit \(\Phi^{-1}(\mu_i)\)</td>
+        </tr>
+        <tr>
+          <td><strong>Binomial (Count)</strong><br>\(y_i \in \{0,\dots,n_i\}\)</td>
+          <td>\(\phi = 1\)<br>\(p_i = 1\) <em>(Form A)</em></td>
+          <td>\(\log\frac{\pi_i}{1-\pi_i}\)</td>
+          <td>\(n_i\log(1+e^{\theta_i})\)</td>
+          <td>\(\mu_i = n_i\pi_i\)<br>\(\operatorname{Var} = n_i\pi_i(1-\pi_i)\)</td>
+          <td><strong>Logit:</strong> \(\log\frac{\mu_i}{n_i-\mu_i}\)</td>
+        </tr>
+        <tr>
+          <td><strong>Binomial (Prop.)</strong><br>\(\tilde{y}_i = y_i/n_i \in [0,1]\)</td>
+          <td>\(\phi = 1\)<br>\(p_i = n_i\) <em>(Form B)</em></td>
+          <td>\(\log\frac{\pi_i}{1-\pi_i}\)</td>
+          <td>\(\log(1+e^{\theta_i})\)</td>
+          <td>\(\mu_i = \pi_i \in (0,1)\)<br>\(V(\pi_i) = \pi_i(1-\pi_i)\)</td>
+          <td><strong>Logit:</strong> \(\log\frac{\pi_i}{1-\pi_i}\)</td>
+        </tr>
+        <tr>
+          <td><strong>Poisson</strong><br>\(y_i \in \{0,1,2,\dots\}\)</td>
+          <td>\(\phi = 1\)<br>\(p_i = 1\)</td>
+          <td>\(\log \mu_i\)</td>
+          <td>\(e^{\theta_i}\)</td>
+          <td>\(\mu_i \in (0,\infty)\)<br>\(V(\mu_i) = \mu_i\)</td>
+          <td><strong>Log:</strong> \(\eta_i = \log\mu_i\)<br><em>(Rates: add \(\log t_i\) offset)</em></td>
+        </tr>
+        <tr>
+          <td><strong>Gamma</strong><br>\(y_i \in (0,\infty)\)</td>
+          <td>\(\phi = 1/\nu &gt; 0\)<br>\(p_i = 1\)</td>
+          <td>\(-\frac{1}{\mu_i} &lt; 0\)</td>
+          <td>\(-\log(-\theta_i)\)</td>
+          <td>\(\mu_i \in (0,\infty)\)<br>\(V(\mu_i) = \mu_i^2\)</td>
+          <td>Canonical \(-1/\mu_i\) (R/Py \(+1/\mu_i\));<br><strong>Prefer Log:</strong> \(\log\mu_i\)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>3. Two Diagnostic Questions Before Picking a Model</h2>
+    <ol>
+      <li><strong>Range check:</strong> What values can \(\mu_i = E[Y_i \mid x_i]\) legally take? Pick an invertible link \(g\) mapping that open interval onto \((-\infty, +\infty)\) (which is why Gamma’s log link beats its canonical inverse link when \(\eta_i\) can cross zero!).</li>
+      <li><strong>Spread check:</strong> How does \(\operatorname{Var}(Y_i \mid x_i)\) scale as \(\mu_i\) grows—constant (\(1\)), pinched at \(0\) and \(1\) (\(\mu(1-\mu)\)), linear (\(\mu\)), or quadratic (\(\mu^2\))? Pick the random component accordingly.</li>
+    </ol>
+
+    <footer class="lesson-footer">
+      Sources: <a href="https://doi.org/10.2307/2344614">Nelder &amp; Wedderburn (1972)</a>; <a href="https://doi.org/10.1201/9780203753736">McCullagh &amp; Nelder (1989, Table 2.1)</a>; <a href="https://grodri.github.io/glms/notes/a2.pdf">Rodríguez, Appendix B</a>.
+    </footer>
+  </main>
+
+  <script src="../assets/vendor/katex/0.19.1/katex.min.js"></script>
+  <script src="../assets/vendor/katex/0.19.1/contrib/auto-render.min.js"></script>
+  <script src="../assets/math.js"></script>
+</body>
+</html>

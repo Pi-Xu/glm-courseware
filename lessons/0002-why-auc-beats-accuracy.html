@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lesson 0002 — Why We Choose AUC Over Accuracy (Zero Statistics Assumed)</title>
+  <link rel="stylesheet" href="../assets/vendor/katex/0.19.1/katex.min.css">
+  <link rel="stylesheet" href="../assets/teaching.css">
+</head>
+<body>
+  <nav class="topbar">
+    <div class="topbar-inner">
+      <a class="topbar-brand" href="../index.html">GLM Learning Workspace</a>
+      <div class="topbar-nav">
+        <a href="0001-why-straight-lines-break.html">Lesson 1</a>
+        <a href="0002-why-auc-beats-accuracy.html" aria-current="page">Metrics 1: AUC</a>
+        <a href="0003-model-performance-taxonomy.html">Metrics 2: Taxonomy</a>
+        <a href="../reference/evaluation-metrics-reference.html">Metrics Guide</a>
+        <a href="../reference/prerequisites-primer.html">Prerequisites</a>
+        <a href="../reference/glm-blueprint-cheatsheet.html">GLM Blueprint</a>
+        <a href="../reference/estimation-and-deviance-reference.html">EDF, IRLS &amp; Deviance</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <header class="lesson-header">
+      <p class="eyebrow">Lesson 0002 · Evaluation Metrics Track (Zero Statistics Assumed)</p>
+      <h1>Why We Choose AUC Over Accuracy</h1>
+      <p class="subtitle">
+        No formulas to memorize and zero prior statistics needed: start from the single most intuitive picture of binary classification—pushing true \(0\)s near \(0\) and true \(1\)s near \(1\)—then see why Accuracy misreads that picture and what AUC actually counts.
+      </p>
+      <div class="meta-strip">
+        <span class="badge">~10 min interactive lesson</span>
+        <span class="badge">Summary Sheet: <a href="../reference/evaluation-metrics-reference.html">Metrics Cheat Sheet</a></span>
+      </div>
+    </header>
+
+    <section id="binary-intuition">
+      <h2>1. Start With Direct Intuition: What Model Capability Looks Like on \([0, 1]\)</h2>
+      <p>
+        Before touching any evaluation metric, picture what <strong>binary classification</strong> is actually doing. Every real-world case belongs to one of <strong>two true classes</strong>: <strong>Class \(0\)</strong> (<span class="cls-badge cls-0"></span>, say a healthy patient or normal card swipe) or <strong>Class \(1\)</strong> (<span class="cls-badge cls-1">×</span>, say a sick patient or stolen card).
+      </p>
+      <p>
+        When you feed those cases into a binary GLM (like Logistic Regression from <a href="0001-why-straight-lines-break.html">Lesson 1</a>), the model does <strong>not</strong> output a blunt "Yes" or "No." Instead, it places every single person along a horizontal scale from <strong>\(0.0\) to \(1.0\)</strong>—their predicted probability or risk score \(s_i\).
+      </p>
+
+      <div class="callout ok">
+        <div class="callout-title">The Most Intuitive Rule of Binary Classification</div>
+        <p>
+          <strong>Generally speaking, the stronger a model’s capability is, the more cleanly the two classes stay near opposite ends of \([0, 1]\): true \(0\)s (<span class="cls-badge cls-0"></span>) should stay near \(0.0\), and true \(1\)s (<span class="cls-badge cls-1">×</span>) should stay near \(1.0\)!</strong>
+        </p>
+      </div>
+
+      <div class="widget" data-binary-capability-plot>
+        <div class="widget-header">
+          <p class="widget-title">Interactive Dot Plot: Drag Model Capability &amp; Watch \(0\)s and \(1\)s Pull Apart</p>
+          <div class="tab-group" role="tablist" style="flex-wrap:wrap">
+            <button class="tab-btn" type="button" data-cap-preset="blind" aria-selected="false">1. Coin Flip (Mixed)</button>
+            <button class="tab-btn" type="button" data-cap-preset="weak" aria-selected="false">2. Weak Model</button>
+            <button class="tab-btn" type="button" data-cap-preset="good" aria-selected="true">3. Realistic Good Model</button>
+            <button class="tab-btn" type="button" data-cap-preset="strong" aria-selected="false">4. Strong Model (Near 0 &amp; 1)</button>
+          </div>
+        </div>
+
+        <div class="controls-row">
+          <div class="control-box">
+            <label><span>Model Capability (Signal Strength)</span> <span data-cap-val>60%</span></label>
+            <input type="range" data-cap-slider min="0" max="100" step="1" value="60">
+          </div>
+          <div class="control-box" data-cap-cutoff-box style="opacity:0.6">
+            <label>
+              <span>Optional Alarm Cutoff \(t\)</span>
+              <span data-cap-cutoff-val>0.50</span>
+            </label>
+            <div style="display:flex;gap:0.55rem;align-items:center">
+              <input type="range" data-cap-cutoff min="0" max="1" step="0.01" value="0.50">
+              <button class="btn" type="button" data-cap-toggle-cutoff style="white-space:nowrap;padding:0.32rem 0.65rem;font-size:0.76rem">Slice with Cutoff t: OFF</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="svg-wrap" style="margin:0.2rem 0 0.9rem">
+          <svg data-cap-svg viewBox="0 0 760 242" aria-label="Stacked dot plot of True Class 0 orange circles and True Class 1 purple x-squares across predicted scores 0.0 to 1.0"></svg>
+        </div>
+
+        <div class="metrics-kpi-strip" style="margin-bottom:0.75rem">
+          <div class="stage-box" data-cap-kpi-0></div>
+          <div class="stage-box" data-cap-kpi-1></div>
+          <div class="stage-box" data-cap-kpi-sep></div>
+        </div>
+
+        <p data-cap-caption style="font-size:0.84rem;color:var(--ink-muted);margin:0;max-width:none"></p>
+      </div>
+
+      <ul>
+        <li><strong>Weak / blind model (\(0\%\)):</strong> Cannot tell the two groups apart, so <span class="cls-badge cls-0"></span> and <span class="cls-badge cls-1">×</span> huddle together in the middle (\(\approx 0.50\)).</li>
+        <li><strong>Realistic good model (\(60\%\), default view):</strong> Pushes most true \(0\)s (<span class="cls-badge cls-0"></span>) left toward \(0.0\) and most true \(1\)s (<span class="cls-badge cls-1">×</span>) right toward \(1.0\), while genuinely hard borderline cases still stack in the same middle columns (\(\approx 0.32\text{–}0.66\)).</li>
+        <li><strong>Strong capability (\(100\%\)):</strong> Packs true \(0\)s tightly near \(0.0\) and true \(1\)s tightly near \(1.0\), shrinking the middle overlap to zero!</li>
+      </ul>
+      <p style="font-size:0.9rem;color:var(--ink-muted)">
+        <strong>Why do we say <em>"generally speaking"</em>?</strong> Two quick reasons: (1) in real life, two patients with identical symptoms can still have different outcomes, leaving unavoidable middle overlap; and (2) as you are about to see in Trap 2, a poorly scaled model can still <strong>sort</strong> <span class="cls-badge cls-0"></span> left of <span class="cls-badge cls-1">×</span> correctly even when its raw numbers get squashed away from \(1.0\) (we connect rank order vs. probability scale in <a href="0003-model-performance-taxonomy.html">Lesson 0003</a>!).
+      </p>
+    </section>
+
+    <section id="accuracy-traps">
+      <h2>2. Two Everyday Traps Where Accuracy Misreads That Picture</h2>
+      <p>
+        Now look at how <strong>Accuracy</strong> tries to judge that \([0, 1]\) dot plot: it drops <strong>one fixed vertical cutoff knife \(t\)</strong> (software almost always defaults to \(t = 0.50\)), labels everything to the left "\(0\)" and everything to the right "\(1\)," and asks: <em>"Out of everyone, what percentage of Yes/No guesses matched?"</em> That sounds completely fair—until you watch it fail in two opposite ways on tiny numbers
+        <a class="cite" href="https://doi.org/10.1016/j.patrec.2005.10.010" target="_blank" rel="noopener">Fawcett, 2006, §1–§2</a>:
+      </p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Trap 1: The "Lazy Brick" (\(99\%\) Accuracy, Zero Value)</h3>
+          <p style="font-size:0.9rem;color:var(--ink-muted)">Imagine \(100\) card swipes: \(99\) are honest (\(0\)) and \(1\) is a thief (\(1\)).</p>
+          <p style="font-size:0.9rem">
+            Suppose we replace our model with a painted wooden brick that prints <strong>"Normal (\(0\))" for every customer forever</strong>:
+          </p>
+          <ul style="font-size:0.88rem;margin-bottom:0">
+            <li>Honest customers guessed right: <strong>\(99 / 99\)</strong></li>
+            <li>Thieves caught: <strong class="bad-val">\(0 / 1\) (missed the thief!)</strong></li>
+            <li>Total Accuracy: <strong>\(99 / 100 = 99\%\)</strong>!</li>
+          </ul>
+          <p style="font-size:0.86rem;margin-top:0.65rem;margin-bottom:0">
+            Whenever \(1\)s are rare (fraud, disease, server crashes, ad clicks), Accuracy mostly congratulates you for saying "nothing happened."
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>Trap 2: The Cutoff Illusion (\(60\%\) vs. \(100\%\) on the Same Model)</h3>
+          <p style="font-size:0.9rem;color:var(--ink-muted)">Look at our GLM’s risk scores on 5 clinic patients (\(0=\) Healthy, \(1=\) Sick):</p>
+          <table class="data-table" style="margin:0.5rem 0">
+            <thead>
+              <tr>
+                <th>Patient</th>
+                <th class="num">Truth \(y_i\)</th>
+                <th class="num">GLM Score \(s_i\)</th>
+                <th class="num">Guess at \(t=0.50\)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>P1</td><td class="num">0</td><td class="num">0.08</td><td class="num">0 ✓</td></tr>
+              <tr><td>P2</td><td class="num">0</td><td class="num">0.18</td><td class="num">0 ✓</td></tr>
+              <tr><td>P3</td><td class="num">0</td><td class="num">0.32</td><td class="num">0 ✓</td></tr>
+              <tr><td>P4</td><td class="num">1</td><td class="num">0.42</td><td class="num bad-val">0 ✗</td></tr>
+              <tr><td>P5</td><td class="num">1</td><td class="num">0.48</td><td class="num bad-val">0 ✗</td></tr>
+            </tbody>
+          </table>
+          <p style="font-size:0.86rem;margin-bottom:0">
+            Look at column 3: <strong>every sick patient (\(0.42, 0.48\)) got a higher score than every healthy patient (\(0.08, 0.18, 0.32\))!</strong> Yet software defaults to cutoff \(t = 0.50\) ("predict \(1\) only if \(s_i \ge 0.50\)"), giving <strong class="bad-val">\(3/5 = 60\%\) Accuracy</strong>! Lower the cutoff to \(0.40\), and Accuracy jumps to <strong class="good-val">\(5/5 = 100\%\)</strong>—without changing the model!
+          </p>
+        </div>
+      </div>
+
+      <div class="callout">
+        <div class="callout-title">Why Accuracy Confuses Two Separate Jobs</div>
+        <p>
+          Accuracy does not measure your model alone; it measures <strong>your model glued to one arbitrary cutoff \(t\)</strong>, weighted heavily by whichever group (\(0\) or \(1\)) happens to be bigger. To judge the model fairly, we must separate the two real groups and look across cutoffs!
+        </p>
+      </div>
+    </section>
+
+    <section id="roc-and-auc">
+      <h2>3. What ROC and AUC Actually Mean (Zero Calculus Needed!)</h2>
+      <p>
+        First, instead of mixing Healthy (\(0\)) and Sick (\(1\)) people into one pot, split them into their two real groups at any alarm cutoff \(t\):
+      </p>
+      <ul>
+        <li><strong>Catch Rate</strong> (officially <em>True Positive Rate, TPR</em>, or <em>Recall</em>): <strong>Among truly Sick people (\(1\)s)</strong>, what fraction did our alarm catch?</li>
+        <li><strong>False Alarm Rate</strong> (officially <em>False Positive Rate, FPR</em>): <strong>Among truly Healthy people (\(0\)s)</strong>, what fraction did we wrongly scare with a false alarm?</li>
+      </ul>
+      <p>
+        As you slide cutoff \(t\) from super strict (\(1.00\), alarm never rings \(\to (0,0)\)) down to super loose (\(0.00\), alarm rings for everyone \(\to (1,1)\)), plotting \((\text{False Alarm Rate}, \text{Catch Rate})\) traces the <strong>ROC Curve</strong> (<em>Receiver Operating Characteristic</em>—a World War II radar name for separating real planes from static noise!).
+      </p>
+
+      <h3>The Secret Shortcut: AUC Is Just a Pairwise Contest!</h3>
+      <p>
+        "Area Under the ROC Curve" (<strong>AUC</strong>) sounds like geometry, but statisticians proved it equals something anyone can count on their fingers
+        <a class="cite" href="https://doi.org/10.1148/radiology.143.1.7063747" target="_blank" rel="noopener">Hanley &amp; McNeil, 1982, p. 30</a>
+        <a class="cite" href="https://doi.org/10.1016/j.patrec.2005.10.010" target="_blank" rel="noopener">Fawcett, 2006, §7.2</a>:
+      </p>
+
+      <div class="callout ok">
+        <div class="callout-title">The One-Sentence Meaning of AUC</div>
+        <p>
+          <strong>Pick one real \(1\) (Sick) and one real \(0\) (Healthy) at random. AUC is the fraction of \((1, 0)\) pairs where your model gave a higher score to the real \(1\) than to the real \(0\)!</strong> <em>(Exact score ties count as half a win: \(0.5\).)</em>
+        </p>
+      </div>
+
+      <p>
+        Let’s count AUC by hand on 5 patients where scores overlap slightly:
+        3 Healthy people get <code>0.10 (Anna), 0.30 (Ben), 0.45 (Dan)</code>, and 2 Sick people get <code>0.40 (Cara), 0.80 (Eva)</code>.
+        With \(2\) Sick and \(3\) Healthy people, there are only \(2 \times 3 = 6\) possible pairs:
+      </p>
+      <ul>
+        <li><strong>Eva (Sick, \(0.80\))</strong> vs. Anna (\(0.10\)) ✓, vs. Ben (\(0.30\)) ✓, vs. Dan (\(0.45\)) ✓ \(\longrightarrow\) <strong>\(3\) wins</strong>!</li>
+        <li><strong>Cara (Sick, \(0.40\))</strong> vs. Anna (\(0.10\)) ✓, vs. Ben (\(0.30\)) ✓, vs. Dan (\(0.45\)) ✗ \(\longrightarrow\) <strong>\(2\) wins, \(1\) loss</strong>!</li>
+      </ul>
+      <p>
+        Total score: <strong>\(5\) wins out of \(6\) pairs \(\implies \text{AUC} = \frac{5}{6} \approx 0.833\)</strong>!
+        Notice why AUC immediately fixes both Accuracy traps:
+      </p>
+      <ol>
+        <li><strong>No arbitrary cutoff \(t\):</strong> We never needed \(0.50\)—we compared the scores directly!</li>
+        <li><strong>Exposes the Lazy Brick instantly:</strong> If a lazy fraud model gives the same score (say \(0.10\)) to all \(99\) honest shoppers and \(1\) thief, every single pair is a tie (\(0.5\) points) \(\implies \mathbf{\text{AUC} = 0.50}\), the exact score of flipping a blind coin!</li>
+      </ol>
+    </section>
+
+    <section id="interactive-lab">
+      <h2>4. Interactive Lab: Cutoff Slider, Pairwise Duels &amp; ROC Curve</h2>
+      <div class="widget" data-metrics-roc-lab>
+        <div class="widget-header">
+          <p class="widget-title">Explore Live: Watch Accuracy Jump While AUC Holds Steady</p>
+          <div style="display:flex;gap:0.45rem;flex-wrap:wrap;align-items:center">
+            <div class="tab-group" role="tablist">
+              <button class="tab-btn" type="button" data-metrics-scenario="clinic" aria-selected="true">1. Clinic (Perfect Order)</button>
+              <button class="tab-btn" type="button" data-metrics-scenario="overlap" aria-selected="false">2. Overlap (5/6 = 0.833)</button>
+              <button class="tab-btn" type="button" data-metrics-scenario="lazy" aria-selected="false">3. Lazy Fraud (90% Acc!)</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="controls-row">
+          <div class="control-box">
+            <label><span>Alarm Cutoff \(t\) (flag if \(s_i \ge t\))</span> <span data-cutoff-val>0.50</span></label>
+            <input type="range" data-cutoff min="0" max="1" step="0.01" value="0.50">
+          </div>
+          <div class="control-box" style="display:flex;gap:0.5rem;align-items:center;justify-content:space-between;flex-wrap:wrap">
+            <button class="btn" type="button" data-preset-half>Set \(t = 0.50\)</button>
+            <button class="btn" type="button" data-toggle-squash>Squash Scores ÷ 2: OFF</button>
+          </div>
+        </div>
+
+        <div class="metrics-kpi-strip">
+          <div class="stage-box" data-kpi-acc></div>
+          <div class="stage-box" data-kpi-rates></div>
+          <div class="stage-box" data-kpi-auc></div>
+        </div>
+
+        <div class="metrics-split">
+          <div class="svg-wrap" style="margin:0">
+            <svg data-roc-svg viewBox="0 0 380 355" aria-label="ROC curve and predicted risk score strip"></svg>
+          </div>
+          <div>
+            <div data-cm-wrap></div>
+            <div data-duel-wrap></div>
+          </div>
+        </div>
+
+        <p data-scenario-note style="font-size:0.84rem;color:var(--ink-muted);margin:0.85rem 0 0;max-width:none"></p>
+        <p style="font-size:0.82rem;color:var(--ink-muted);margin:0.45rem 0 0;max-width:none">
+          <strong>30-second experiment:</strong> Switch to <em>2. Overlap (5/6 = 0.833)</em>, set \(t = 0.50\) (Accuracy \(= 80\%\)), then click <strong>Squash Scores ÷ 2</strong>. Watch Accuracy drop to \(60\%\) (because \(0.80 \to 0.40\) fell below \(0.50\)), while <strong>ROC-AUC stays locked at \(0.833\)</strong> because every pairwise duel kept the exact same winner!
+        </p>
+      </div>
+    </section>
+
+    <section id="blind-spots">
+      <h2>5. Two Honest Blind Spots: When Even ROC-AUC Needs Backup</h2>
+      <p>
+        A great practitioner knows both why AUC beats Accuracy <em>and</em> the two situations where ROC-AUC alone is not enough (full table in <a href="../reference/evaluation-metrics-reference.html#decision-matrix">Metrics Cheat Sheet §3</a>):
+      </p>
+      <ol>
+        <li>
+          <strong>Extreme Needle-in-a-Haystack (\(1\) thief in \(10{,}000\) shoppers) \(\longrightarrow\) Check PR-AUC too:</strong>
+          False Alarm Rate divides false alarms by <em>all honest shoppers</em>. If your alarm flags \(1\) real thief plus \(100\) innocent shoppers, \(\text{FPR} = 100 / 10{,}000 = 1\%\) looks tiny and ROC-AUC looks near \(0.99\)—even though <strong>\(100\) out of \(101\) alarms (\(99\%\)) are false!</strong> When false alarms waste human investigators’ time, check <strong>Precision</strong> and <strong>PR-AUC</strong>
+          <a class="cite" href="https://doi.org/10.1371/journal.pone.0118432" target="_blank" rel="noopener">Saito &amp; Rehmsmeier, 2015</a>.
+        </li>
+        <li>
+          <strong>When Exact Probabilities Matter \(\longrightarrow\) Check Log-Loss (GLM Deviance):</strong>
+          As you saw with the <em>Squash Scores ÷ 2</em> button, AUC only checks <strong>rank order</strong>. Dividing every probability by \(2\) leaves AUC unchanged, even though telling a patient their \(80\%\) surgical risk is "\(40\%\)" is dangerous! That is why Logistic GLMs fit parameters using <strong>Deviance (= \(2 \times\) Log-Loss)</strong>, which rewards honest, calibrated probabilities
+          <a class="cite" href="https://doi.org/10.1198/016214506000001437" target="_blank" rel="noopener">Gneiting &amp; Raftery, 2007</a>.
+        </li>
+      </ol>
+    </section>
+
+    <section id="practice">
+      <h2>6. Skill Practice: Instant Feedback Loop</h2>
+
+      <h3>Part A · Concrete 4-Person Hand Calculation</h3>
+      <p>
+        Suppose a Logistic GLM gives risk scores on <strong>4 customers</strong>:
+        two <strong>Honest (\(y=0\))</strong> customers get <code>0.20</code> and <code>0.55</code>, while two <strong>Fraud (\(y=1\))</strong> customers get <code>0.40</code> and <code>0.90</code>. Compute each number by hand and click <strong>Check</strong>:
+      </p>
+
+      <div class="numeric-grid" style="font-family:var(--sans)">
+        <div class="numeric-field" data-numeric-check data-answer="0.50" data-tolerance="0.01"
+             data-ok="Right! At \(t=0.50\), 0.20→0 (✓), 0.55→1 (✗), 0.40→0 (✗), 0.90→1 (✓): only \(2/4 = 0.50\) right!"
+             data-hint="Check each of the 4 people against \(s_i \ge 0.50\): how many of the 4 guesses match their true \(0/1\) label? Divide by 4.">
+          <label>1. Accuracy at cutoff \(t = 0.50\) (as decimal)</label>
+          <div class="numeric-row">
+            <input type="text" placeholder="e.g. 0.50">
+            <button class="btn btn-primary" type="button">Check</button>
+          </div>
+          <div class="numeric-status"></div>
+        </div>
+
+        <div class="numeric-field" data-numeric-check data-answer="4" data-tolerance="0.001"
+             data-ok="Exact! \(2\text{ Fraud} \times 2\text{ Honest} = 4\) possible \((1, 0)\) pairs."
+             data-hint="Multiply the number of real \(1\)s (2) by the number of real \(0\)s (2).">
+          <label>2. Total number of \((\text{Fraud}, \text{Honest})\) pairs</label>
+          <div class="numeric-row">
+            <input type="text" placeholder="e.g. 4">
+            <button class="btn btn-primary" type="button">Check</button>
+          </div>
+          <div class="numeric-status"></div>
+        </div>
+
+        <div class="numeric-field" data-numeric-check data-answer="0.75" data-tolerance="0.01"
+             data-ok="Spot on! Fraud \(0.90\) beats both \(0.20\) and \(0.55\) (2 wins); Fraud \(0.40\) beats \(0.20\) (1 win) and loses to \(0.55\) (0). \(3/4 = 0.75\)!"
+             data-hint="Count how many of the 4 pairs have \(\text{Fraud score} &gt; \text{Honest score}\): compare \(0.90\) vs \((0.20, 0.55)\) and \(0.40\) vs \((0.20, 0.55)\), then divide by 4.">
+          <label>3. Exact \(\text{ROC-AUC}\) (as decimal)</label>
+          <div class="numeric-row">
+            <input type="text" placeholder="e.g. 0.75">
+            <button class="btn btn-primary" type="button">Check</button>
+          </div>
+          <div class="numeric-status"></div>
+        </div>
+      </div>
+
+      <h3>Part B · Retrieval Quiz (No Peeking Above!)</h3>
+      <div data-quiz>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;font-family:var(--sans);font-size:0.85rem">
+          <span data-quiz-score style="font-weight:700;color:var(--accent)">0 / 5 answered correctly</span>
+          <button class="btn" type="button" data-quiz-reset>Reset Quiz</button>
+        </div>
+
+        <div class="quiz-item" data-correct="1"
+             data-explain-ok="Correct! Generally speaking, as a binary model’s capability strengthens, true \(0\)s gather closer to \(0.0\) and true \(1\)s gather closer to \(1.0\), shrinking the mixed overlap zone in the middle.">
+          <p class="quiz-q">1. On a \([0.0, 1.0]\) predicted-score dot plot, what generally happens as a binary classifier’s capability gets stronger?</p>
+          <div class="quiz-options">
+            <button class="quiz-opt" type="button" data-why="Crowding both classes near \(0.50\) is what a blind, zero-capability coin-flip model does!">Both true 0s and true 1s crowd tightly around 0.50.</button>
+            <button class="quiz-opt" type="button">True 0s gather near 0.0 and true 1s gather near 1.0.</button>
+            <button class="quiz-opt" type="button" data-why="Pushing true \(0\)s toward \(1.0\) and true \(1\)s toward \(0.0\) means the model’s predictions point completely backward!">True 0s gather near 1.0 and true 1s gather near 0.0.</button>
+            <button class="quiz-opt" type="button" data-why="Spreading both classes evenly everywhere mixes \(0\)s and \(1\)s across the entire line (\(\text{AUC} \approx 0.50\)).">Both classes spread evenly across every bin on [0, 1].</button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-item" data-correct="2"
+             data-explain-ok="Correct! When \(99\) of \(100\) charges are valid (\(0\)), blindly predicting \(0\) every time gets \(99/100 = 99\%\) accuracy while catching \(0\) stolen cards.">
+          <p class="quiz-q">2. On 100 card swipes with 99 valid charges and 1 stolen card, why can a completely useless model score 99% accuracy?</p>
+          <div class="quiz-options">
+            <button class="quiz-opt" type="button" data-why="Predicting fraud (\(1\)) every time catches the \(1\) stolen card but gets \(99\) false alarms, giving only \(1\%\) accuracy!">Predicting fraud every time catches 99 real stolen charges.</button>
+            <button class="quiz-opt" type="button" data-why="Accuracy counts label matches, not financial profit—the high number comes from matching the \(99\) normal rows.">Raising cutoffs upward turns false alarms into huge profit.</button>
+            <button class="quiz-opt" type="button">Predicting normal every time matches 99 valid card charges.</button>
+            <button class="quiz-opt" type="button" data-why="Randomly sorting scores gives roughly \(0.50\) AUC and does not guarantee \(99\%\) accuracy.">Sorting risk scores randomly fixes 99 broken cutoff values.</button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-item" data-correct="0"
+             data-explain-ok="Correct! \(\text{AUC} = 0.85\) literally means that in \(85\%\) of randomly drawn \((\text{Sick}, \text{Healthy})\) pairs, the model assigns a higher risk score to the sick patient.">
+          <p class="quiz-q">3. Suppose your medical GLM achieves ROC-AUC = 0.85. What does that 0.85 literally mean in plain English?</p>
+          <div class="quiz-options">
+            <button class="quiz-opt" type="button">Sick patients receive higher scores in 85% of random pairs.</button>
+            <button class="quiz-opt" type="button" data-why="Fraction of exact binary labels across visits is Accuracy at a fixed cutoff, not AUC.">Models predict exact binary labels on 85% of clinic visits.</button>
+            <button class="quiz-opt" type="button" data-why="The fraction of triggered alarms that are truly sick is Precision (at one cutoff), not ROC-AUC.">Roughly 85% of all triggered alarms belong to sick clients.</button>
+            <button class="quiz-opt" type="button" data-why="\(0.85\) is the area / pairwise win rate across all cutoffs, not a recommended cutoff value!">Setting cutoffs at 0.85 gives top accuracy across all rows.</button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-item" data-correct="3"
+             data-explain-ok="Correct! Dividing every score by \(2\) preserves who beats whom in every \((1,0)\) pair—so AUC stays identical—whereas scores like \(0.80 \to 0.40\) cross below cutoff \(0.50\), changing Accuracy!">
+          <p class="quiz-q">4. If you divide every predicted risk score in your model by 2, what happens to ROC-AUC versus Accuracy at cutoff 0.50?</p>
+          <div class="quiz-options">
+            <button class="quiz-opt" type="button" data-why="Dividing positive numbers by \(2\) never flips which number is larger, so AUC does not drop at all!">AUC drops in half, while accuracy at 0.50 stays identical.</button>
+            <button class="quiz-opt" type="button" data-why="AUC depends only on rank order, so positive rescaling leaves AUC completely untouched.">Both AUC and accuracy at 0.50 drop fifty percent outright.</button>
+            <button class="quiz-opt" type="button" data-why="Rescaling scores cannot fix misordered pairs, and pushing scores below \(0.50\) changes predictions at \(t=0.50\).">AUC climbs to one, while accuracy at 0.50 stays unchanged.</button>
+            <button class="quiz-opt" type="button">AUC stays identical, while accuracy at 0.50 can drop fast.</button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+
+        <div class="quiz-item" data-correct="1"
+             data-explain-ok="Correct! On ultra-rare positives, false alarms can swamp Precision even at high ROC-AUC (use PR-AUC), and when exact risk numbers matter, rank-only AUC must be paired with Log-Loss / Deviance.">
+          <p class="quiz-q">5. In which situation is a high ROC-AUC alone NOT enough, requiring PR-AUC or Log-Loss (GLM Deviance) as well?</p>
+          <div class="quiz-options">
+            <button class="quiz-opt" type="button" data-why="Balanced classes where only rank order matters is actually the ideal home turf for ROC-AUC!">When classes are balanced and only rank order matters most.</button>
+            <button class="quiz-opt" type="button">When false alarms hurt a lot or exact probabilities matter.</button>
+            <button class="quiz-opt" type="button" data-why="Summarizing ranking before picking a fixed threshold is the exact strength of ROC-AUC.">When you want one score before picking any fixed threshold.</button>
+            <button class="quiz-opt" type="button" data-why="ROC-AUC directly measures how models order random \((1,0)\) pairs!">When testing how two models order random pairs of subjects.</button>
+          </div>
+          <div class="quiz-feedback"></div>
+        </div>
+      </div>
+
+      <p style="font-size:0.88rem;color:var(--ink-muted);margin-top:1rem">
+        Continue next to <a href="0003-model-performance-taxonomy.html"><strong>Lesson 0003: How Metrics Map to the Four Categories of Model Performance</strong></a>.
+      </p>
+    </section>
+
+    <section id="reading">
+      <h2>7. Recommended Primary Source Reading</h2>
+      <div class="card">
+        <h3>Read Next (12 minutes): Tom Fawcett (2006) — <em>"An introduction to ROC analysis"</em>, §1–§2 &amp; §7</h3>
+        <p>
+          Open <a href="https://doi.org/10.1016/j.patrec.2005.10.010" target="_blank" rel="noopener">Fawcett (2006), <em>Pattern Recognition Letters</em>, 27(8), 861–874</a> (specifically §1–§2 on confusion matrices &amp; ROC space, and §7 on Area Under the ROC Curve).
+        </p>
+        <p style="margin-bottom:0">
+          <strong>What to look for while reading:</strong> Spot two key properties Fawcett highlights: (1) why ROC curves stay unchanged even if the ratio of positives to negatives changes ("class skew invariance" in §4.1), and (2) his short paragraph in §7.2 connecting AUC to the Wilcoxon–Mann–Whitney pairwise ranking probability—the exact duel table you just used above!
+        </p>
+      </div>
+    </section>
+
+    <footer class="lesson-footer">
+      GLM Learning Workspace · Lesson 0002 (Evaluation Metrics Track) · References:
+      <a href="../reference/evaluation-metrics-reference.html">Metrics Cheat Sheet</a> ·
+      <a href="../index.html">Course Hub</a>
+    </footer>
+  </main>
+
+  <script src="../assets/vendor/katex/0.19.1/katex.min.js"></script>
+  <script src="../assets/vendor/katex/0.19.1/contrib/auto-render.min.js"></script>
+  <script src="../assets/math.js"></script>
+  <script src="../assets/binary-capability-plot.js"></script>
+  <script src="../assets/metrics-roc-lab.js"></script>
+  <script src="../assets/quiz.js"></script>
+</body>
+</html>

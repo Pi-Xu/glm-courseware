@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GLM Learning Workspace — Course Hub</title>
+  <link rel="stylesheet" href="assets/vendor/katex/0.19.1/katex.min.css">
+  <link rel="stylesheet" href="assets/teaching.css">
+</head>
+<body>
+  <nav class="topbar">
+    <div class="topbar-inner">
+      <a class="topbar-brand" href="index.html" aria-current="page">GLM Learning Workspace</a>
+      <div class="topbar-nav">
+        <a href="lessons/0001-why-straight-lines-break.html">Lesson 1</a>
+        <a href="lessons/0002-why-auc-beats-accuracy.html">Metrics 1: AUC</a>
+        <a href="lessons/0003-model-performance-taxonomy.html">Metrics 2: Taxonomy</a>
+        <a href="reference/evaluation-metrics-reference.html">Metrics Guide</a>
+        <a href="reference/prerequisites-primer.html">Prerequisites</a>
+        <a href="reference/glm-blueprint-cheatsheet.html">GLM Blueprint</a>
+        <a href="reference/estimation-and-deviance-reference.html">EDF, IRLS &amp; Deviance</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <header class="lesson-header">
+      <p class="eyebrow">Teaching Workspace · Generalized Linear Models in English</p>
+      <h1>Master GLMs from Intuition to Estimation &amp; Practice</h1>
+      <p class="subtitle">
+        Explore generalized linear models through small numerical examples, from exponential families and IRLS to deviance and model evaluation.
+      </p>
+    </header>
+
+    <h2>Core GLM Track · Interactive Lessons</h2>
+    <div class="card">
+      <p class="eyebrow" style="margin-bottom:0.25rem">Lesson 0001 · Core GLM Track</p>
+      <h3 style="margin-bottom:0.4rem"><a href="lessons/0001-why-straight-lines-break.html">Why Straight Lines Break—and the Three-Part GLM Fix</a></h3>
+      <p style="margin-bottom:0">
+        Watch OLS fail on two 4-row binary and count datasets, see why transforming \(E[Y_i \mid x_i]\) beats transforming \(Y_i\) (with a 2-number Jensen proof), and explore \(\eta \to \mu \to \operatorname{Var}(Y\mid x)\) interactively.
+      </p>
+    </div>
+
+    <h2>Special Module · Evaluation Metrics Track (Zero Statistics Assumed)</h2>
+    <div class="track-banner">
+      <p class="eyebrow" style="margin-bottom:0.25rem">Dedicated Side-Track · Zero-Stats Friendly</p>
+      <p style="margin-bottom:0.85rem">
+        Standalone module explaining how we judge binary and probability predictions from scratch—why Accuracy fails, what ROC-AUC counts, and how every metric maps onto the four categories of model performance (Discrimination, Calibration, Overall Probabilistic Fit, and Cutoff Action).
+      </p>
+      <div class="grid-2" style="margin:0">
+        <div class="card">
+          <p class="eyebrow" style="margin-bottom:0.2rem">Lesson 0002 · Part 1</p>
+          <h3 style="margin-bottom:0.35rem"><a href="lessons/0002-why-auc-beats-accuracy.html">Why We Choose AUC Over Accuracy</a></h3>
+          <p style="margin-bottom:0">
+            Start from the intuitive \([0, 1]\) capability dot plot (stronger models push \(0\)s near \(0\) and \(1\)s near \(1\)), see the 99% "Lazy Brick" and cutoff traps, count AUC via pairwise duels, and drag a live cutoff slider across ROC space.
+          </p>
+        </div>
+        <div class="card">
+          <p class="eyebrow" style="margin-bottom:0.2rem">Lesson 0003 · Part 2</p>
+          <h3 style="margin-bottom:0.35rem"><a href="lessons/0003-model-performance-taxonomy.html">How Metrics Map to the 4 Categories of Model Performance</a></h3>
+          <p style="margin-bottom:0">
+            Explore Discrimination vs. Calibration vs. Overall Probabilistic Score (Log-Loss/Brier) vs. Cutoff Action across 4 live model archetypes on 8 clinic patients.
+          </p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:0.85rem">
+        <p class="eyebrow" style="margin-bottom:0.2rem">Reference Summary · Printable Guide</p>
+        <h3 style="margin-bottom:0.35rem"><a href="reference/evaluation-metrics-reference.html">Evaluation Metrics &amp; 4-Part Performance Taxonomy Cheat Sheet</a></h3>
+        <p style="margin-bottom:0">
+          One-stop zero-stats reference mapping ROC-AUC, PR-AUC, Calibration/ECE, Log-Loss (= half GLM Deviance), Brier Score, Accuracy, Recall, FPR, and Precision—plus AUC strength tiers and diagnosis matrix.
+        </p>
+      </div>
+    </div>
+
+    <h2>Audited Zero-Gap Reference Library (Layers 0–5)</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3><a href="reference/prerequisites-primer.html">1. Prerequisites Primer (Layer 0)</a></h3>
+        <p style="margin-bottom:0">Binary \(0/1\) indicator trick, variance scaling, 5 baseline families (including Gamma mean–dispersion), Jensen’s inequality, odds/logit inversion, likelihood derivatives, and WLS matrices.</p>
+      </div>
+      <div class="card">
+        <h3><a href="reference/glm-blueprint-cheatsheet.html">2. Master GLM &amp; EDF Blueprint</a></h3>
+        <p style="margin-bottom:0">One-page table uniting Normal, Bernoulli, Binomial (count vs. proportion), Poisson, and Gamma across \(\theta_i\), \(b(\theta_i)\), \(V(\mu_i)\), and links.</p>
+      </div>
+      <div class="card">
+        <h3><a href="reference/estimation-and-deviance-reference.html">3. EDF, IRLS &amp; Deviance Reference</a></h3>
+        <p style="margin-bottom:0">Bartlett’s identities, 4-factor score chain rule, \(J(\beta)\) vs. \(\mathcal{I}(\beta)\), worked 3-row IRLS table, verified 4-row Poisson deviance/residuals, and Wedderburn’s Quasi-Likelihood.</p>
+      </div>
+    </div>
+  </main>
+
+  <script src="assets/vendor/katex/0.19.1/katex.min.js"></script>
+  <script src="assets/vendor/katex/0.19.1/contrib/auto-render.min.js"></script>
+  <script src="assets/math.js"></script>
+</body>
+</html>

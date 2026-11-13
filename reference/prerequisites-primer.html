@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Math, Probability &amp; Matrix Prerequisites — GLM Reference</title>
+  <link rel="stylesheet" href="../assets/vendor/katex/0.19.1/katex.min.css">
+  <link rel="stylesheet" href="../assets/teaching.css">
+</head>
+<body>
+  <nav class="topbar">
+    <div class="topbar-inner">
+      <a class="topbar-brand" href="../index.html">GLM Learning Workspace</a>
+      <div class="topbar-nav">
+        <a href="../lessons/0001-why-straight-lines-break.html">Lesson 1</a>
+        <a href="../lessons/0002-why-auc-beats-accuracy.html">Metrics 1: AUC</a>
+        <a href="../lessons/0003-model-performance-taxonomy.html">Metrics 2: Taxonomy</a>
+        <a href="evaluation-metrics-reference.html">Metrics Guide</a>
+        <a href="prerequisites-primer.html" aria-current="page">Prerequisites</a>
+        <a href="glm-blueprint-cheatsheet.html">GLM Blueprint</a>
+        <a href="estimation-and-deviance-reference.html">EDF, IRLS &amp; Deviance</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <header class="lesson-header">
+      <p class="eyebrow">Reference Document · Layer 0 Zero-Gap Foundation</p>
+      <h1>Foundational Math, Probability &amp; Matrix Primer</h1>
+      <p class="subtitle">
+        Every probability identity, logarithm/logit rule, calculus trick, and matrix bridge used anywhere in Generalized Linear Models—each demonstrated on 2 to 4 concrete numbers so nothing feels like magic.
+      </p>
+      <div class="meta-strip">
+        <span class="badge">Audited Layer 0 Foundation</span>
+        <span class="badge">Convention: \(\log(x) \equiv \ln(x)\) (base \(e\)) everywhere</span>
+      </div>
+    </header>
+
+    <section id="rv-support">
+      <h2>1. Random Variable \(Y_i\), Realization \(y_i\), Support \(\mathcal{Y}\) &amp; Open Mean Space \(\mathcal{M}\)</h2>
+      <ul>
+        <li><strong>Random variable \(Y_i\) vs. realization \(y_i\):</strong> Before data collection, \(Y_i\) is a random data-generating rule; afterward, \(y_i\) is the single observed number on disk. Expectations act on \(Y_i\), never on fixed constants (\(E[y_i] = y_i\)).</li>
+        <li><strong>Support \(\mathcal{Y}\) vs. Mean Space \(\mathcal{M}\):</strong> Raw outcomes live in \(\mathcal{Y}\) (e.g., \(\{0,1\}\) or \(\{0,1,2,\dots\}\)), whereas the conditional mean \(\mu_i = E[Y_i \mid x_i]\) lives in a smooth <strong>open interval</strong> \(\mathcal{M}\) (e.g., \((0,1)\) or \((0,\infty)\)).
+          <br><em>2-number check:</em> Flip a fair coin \(Y \in \{0,1\}\): realized values are only \(0\) or \(1\), yet \(\mu = 0.5 \in (0,1)\) is neither \(0\) nor \(1\)! Non-degenerate GLMs exclude exact boundary means \(\mu_i = 0\) or \(1\) where randomness vanishes and \(\log\frac{\mu_i}{1-\mu_i} = \pm\infty\).</li>
+        <li><strong>Conditional slice \(Y_i \mid x_i\):</strong> A GLM does <em>not</em> assume the pooled histogram of \(Y\) is Poisson or Bernoulli; it assigns a separate distribution slice at each covariate value \(x_i\) with mean \(\mu_i = \sum_{y\in\mathcal{Y}} y\,P(Y_i=y \mid x_i)\) (discrete) or \(\int_{\mathcal{Y}} y\,f(y\mid x_i)\,dy\) (continuous).</li>
+      </ul>
+    </section>
+
+    <section id="expectation-variance">
+      <h2>2. Indicator Trick (\(0/1\)) &amp; Expectation / Variance Scaling Rules</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Why \(E[Y] = P(Y=1)\) &amp; \(\operatorname{Var}(Y)=\mu(1-\mu)\)</h3>
+          <p>For binary \(Y \in \{0,1\}\) with \(P(Y=1) = \mu\) and \(P(Y=0) = 1-\mu\), squaring leaves \(0\) and \(1\) unchanged (\(Y^2 = Y\)):</p>
+          \[
+            \begin{aligned}
+              E[Y] &= 0(1-\mu) + 1(\mu) = \mu, \\
+              E[Y^2] &= E[Y] = \mu, \\
+              \operatorname{Var}(Y) &= E[Y^2] - (E[Y])^2 \\
+              &= \mu - \mu^2 = \mu(1-\mu).
+            \end{aligned}
+          \]
+          <p style="font-size:0.86rem;margin-bottom:0">
+            <em>Check at \(\mu = 0.8\):</em> \(\operatorname{Var}(Y) = 0.8 - 0.64 = 0.16 = 0.8(0.2)\).<br>
+            <strong>Coding trap:</strong> If labels are coded \(\{-1, +1\}\), \(E[Y] = 2\mu - 1 \neq \mu\)! GLMs require \(\{0,1\}\) coding.
+          </p>
+        </div>
+
+        <div class="card">
+          <h3>Linearity &amp; Squared Variance Scaling</h3>
+          <p>For constants \(a, c\):</p>
+          \[
+            \begin{aligned}
+              E[aY + c] &= aE[Y] + c, \\
+              \operatorname{Var}(aY + c) &= a^2\operatorname{Var}(Y).
+            \end{aligned}
+          \]
+          <p style="font-size:0.86rem;margin-bottom:0">
+            <em>Count vs. Proportion (\(n=4, \pi=0.5\)):</em> Sum of \(4\) flips \(Y \sim \operatorname{Bin}(4, 0.5)\) has \(E[Y] = 4(0.5) = 2\) and \(\operatorname{Var}(Y) = 4(0.25) = 1\). Sample proportion \(\tilde{Y} = Y/4\) divides distances by \(4\), so \(\operatorname{Var}(\tilde{Y}) = \frac{1}{4^2}(1) = \frac{0.25}{4} = 0.0625\)!
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="five-families">
+      <h2>3. The Five Baseline Probability Families in GLM Notation</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Family</th>
+            <th>PMF / PDF \(f(y \mid \cdot)\)</th>
+            <th>Support \(\mathcal{Y}\) &amp; Mean \(\mathcal{M}\)</th>
+            <th>GLM Mean &amp; Variance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Normal</strong><br>\(\mathcal{N}(\mu, \sigma^2)\)</td>
+            <td>\(\frac{1}{\sqrt{2\pi\sigma^2}}\exp\!\left(-\frac{(y-\mu)^2}{2\sigma^2}\right)\)</td>
+            <td>\(\mathcal{Y} = \mathbb{R}\)<br>\(\mathcal{M} = \mathbb{R}\)</td>
+            <td>\(E[Y] = \mu\)<br>\(\operatorname{Var}(Y) = \sigma^2\) <em>(decoupled from \(\mu\))</em></td>
+          </tr>
+          <tr>
+            <td><strong>Bernoulli</strong><br>\(\operatorname{Bern}(\mu)\)</td>
+            <td>\(\mu^y (1-\mu)^{1-y}\)</td>
+            <td>\(\mathcal{Y} = \{0,1\}\)<br>\(\mathcal{M} = (0,1)\)</td>
+            <td>\(E[Y] = \mu\)<br>\(\operatorname{Var}(Y) = \mu(1-\mu)\)</td>
+          </tr>
+          <tr>
+            <td><strong>Binomial</strong><br>\(Y \sim \operatorname{Bin}(n, \pi)\)</td>
+            <td>\(\binom{n}{y}\pi^y (1-\pi)^{n-y}\)</td>
+            <td>Count: \(\{0,\dots,n\}\)<br>Prop. \(\tilde{y}=y/n\): \(\{0,\frac{1}{n},\dots,1\}\)</td>
+            <td>Count: \(\mu = n\pi,\; \operatorname{Var} = n\pi(1-\pi)\)<br>Prop.: \(\mu = \pi,\; \operatorname{Var} = \frac{\pi(1-\pi)}{n}\)</td>
+          </tr>
+          <tr>
+            <td><strong>Poisson</strong><br>\(\operatorname{Pois}(\mu)\)</td>
+            <td>\(\frac{e^{-\mu}\mu^y}{y!}\) <em>(\(0!=1\))</em></td>
+            <td>\(\mathcal{Y} = \{0,1,2,\dots\}\)<br>\(\mathcal{M} = (0,\infty)\)</td>
+            <td>\(E[Y] = \mu,\; \operatorname{Var}(Y) = \mu\).<br><em>With exposure \(t_i\):</em> \(\mu_i = \lambda_i t_i\).</td>
+          </tr>
+          <tr>
+            <td><strong>Gamma</strong><br>(Mean \(\mu\), shape \(\nu\))</td>
+            <td>\(\frac{1}{\Gamma(\nu)}\!\left(\frac{\nu}{\mu}\right)^\nu y^{\nu-1}e^{-\nu y/\mu}\)</td>
+            <td>\(\mathcal{Y} = (0,\infty)\)<br>\(\mathcal{M} = (0,\infty)\)</td>
+            <td>\(E[Y] = \mu,\; \operatorname{Var}(Y) = \frac{\mu^2}{\nu} = \phi\mu^2\) (\(\phi = 1/\nu\)).<br>Constant \(\text{CV} = \text{SD}/\mu = \sqrt{\phi}\).</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-size:0.9rem;color:var(--ink-muted)">
+        <strong>Why Poisson has \(\operatorname{Var}(Y) = \mu\):</strong> Split an interval into \(m \to \infty\) tiny independent sub-slots each with rare event chance \(p = \mu/m\). Then \(\operatorname{Var}(Y) = mp(1-p) = \mu(1 - \mu/m) \to \mu\). Whenever real-world events arrive in correlated clumps rather than independently, variance exceeds \(\mu\) (<em>overdispersion</em>).
+      </p>
+    </section>
+
+    <section id="jensen">
+      <h2>4. Nonlinear Transformations &amp; Jensen’s Inequality (\(E[g(Y)] \neq g(E[Y])\))</h2>
+      <p>
+        Even if every observed count happens to be strictly positive (\(y_i &gt; 0\)), regressing \(\log(Y_i)\) on \(x_i\) estimates \(E[\log Y_i \mid x_i]\), whereas a log-link GLM models \(\log(E[Y_i \mid x_i])\). Because \(\log(\cdot)\) is strictly concave (flattening large numbers more than small ones), <strong>Jensen’s inequality</strong> guarantees \(E[\log Y] &lt; \log(E[Y])\) whenever \(\operatorname{Var}(Y) &gt; 0\):
+      </p>
+      <div class="callout warn">
+        <div class="callout-title">2-Number Proof That \(E[\log Y] \neq \log(E[Y])\) (Zero-Free Data!)</div>
+        <p>
+          Suppose \(Y\) takes values \(1\) and \(9\) with probability \(0.5\) each:
+        </p>
+        <ul>
+          <li><strong>GLM target \(\log(E[Y])\):</strong> Arithmetic mean is \(E[Y] = 0.5(1) + 0.5(9) = 5 \implies \log(5) \approx \mathbf{1.609}\).</li>
+          <li><strong>OLS-on-\(\log(Y)\) target \(E[\log Y]\):</strong> \(0.5\log(1) + 0.5\log(9) = 0 + 0.5(2.197) \approx \mathbf{1.099} = \log(3)\).</li>
+        </ul>
+        <p>
+          Exponentiating \(1.099\) back predicts \(e^{1.099} = \mathbf{3}\) (the geometric mean \(\sqrt{1\times 9}\)) instead of \(5\)—a <strong>40% downward bias</strong>! Worse, because count relative variance \(\approx 1/\mu_i(x_i)\) changes with \(x_i\), this Jensen gap varies across \(x_i\) and biases the <strong>slope \(\hat{\beta}_1\)</strong>, not just the intercept. And if zeros occur, the hack \(\log(y_i + \epsilon)\) makes \(\hat{\beta}_1\) arbitrarily sensitive to whether \(\epsilon = 0.1\) (\(\log\epsilon = -2.3\)) or \(10^{-6}\) (\(\log\epsilon = -13.8\))!
+        </p>
+      </div>
+    </section>
+
+    <section id="odds-logit">
+      <h2>5. Log / Exp Laws, Probability \(\leftrightarrow\) Odds \(\leftrightarrow\) Logit &amp; Sigmoid Inversion</h2>
+      <p>
+        <strong>Universal logarithm convention:</strong> In statistics, R, and Python (`np.log`), \(\log(x)\) <em>always</em> denotes the natural logarithm base \(e\) (\(\ln x\)), satisfying \(\exp(\log u) = u\), \(\log(ab) = \log a + \log b\), and \(\log(a^y) = y\log a\) (never confuse \(\log(1+e^\theta)\) with \(\log 1 + \theta\)!).
+      </p>
+      <div class="grid-2">
+        <div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th class="num">Prob. \(\pi\)</th>
+                <th class="num">Odds \(\frac{\pi}{1-\pi}\)</th>
+                <th class="num">Logit \(\log\frac{\pi}{1-\pi}\)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td class="num">0.10</td><td class="num">1 / 9 ≈ 0.11</td><td class="num">−2.20</td></tr>
+              <tr><td class="num">0.25</td><td class="num">1 / 3 ≈ 0.33</td><td class="num">−1.10</td></tr>
+              <tr><td class="num"><strong>0.50</strong></td><td class="num"><strong>1.00</strong></td><td class="num"><strong>0.00</strong></td></tr>
+              <tr><td class="num">0.75</td><td class="num">3.00</td><td class="num">+1.10</td></tr>
+              <tr><td class="num">0.90</td><td class="num">9.00</td><td class="num">+2.20</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3>3-Line Sigmoid &amp; \(1-\pi\) Inversion</h3>
+          <p>Given \(\theta = \log\!\left(\frac{\pi}{1-\pi}\right)\), exponentiate both sides:</p>
+          \[
+            \begin{aligned}
+              e^\theta = \frac{\pi}{1-\pi} &\implies e^\theta(1-\pi) = \pi \\
+              &\implies \pi(1+e^\theta) = e^\theta,
+            \end{aligned}
+          \]
+          \[
+            \begin{aligned}
+              \pi &= \frac{e^\theta}{1+e^\theta} = \frac{1}{1+e^{-\theta}}, \\
+              1 - \pi &= \frac{1}{1+e^\theta}.
+            \end{aligned}
+          \]
+          <p style="font-size:0.86rem;margin-bottom:0">
+            Therefore \(\log(1-\pi) = -\log(1+e^\theta)\)—the exact step that produces Bernoulli’s cumulant \(b(\theta) = \log(1+e^\theta)\)!
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="calculus">
+      <h2>6. Six Calculus &amp; Likelihood Building Blocks</h2>
+      <ol>
+        <li>
+          <strong>Differentiating key cumulants \(b(\theta)\) twice:</strong>
+          <ul>
+            <li><em>Bernoulli</em> \(b(\theta) = \log(1+e^\theta)\): \(b'(\theta) = \frac{e^\theta}{1+e^\theta} = 1 - (1+e^\theta)^{-1} = \mu\); chain rule gives \(b''(\theta) = (1+e^\theta)^{-2}e^\theta = \frac{e^\theta}{1+e^\theta}\frac{1}{1+e^\theta} = \mu(1-\mu)\).</li>
+            <li><em>Gamma</em> \(b(\theta) = -\log(-\theta)\) for \(\theta &lt; 0\) (note \(-\theta &gt; 0\)!): \(b'(\theta) = -\frac{1}{-\theta}(-1) = -\frac{1}{\theta} = \mu\); \(b''(\theta) = \frac{1}{\theta^2} = \mu^2\).</li>
+          </ul>
+        </li>
+        <li>
+          <strong>Inverse-function derivative rule (\(\frac{dx}{dy} = \frac{1}{dy/dx}\)):</strong> Do not confuses functional inverse \(g^{-1}(\eta)\) with reciprocal \(1/g(\mu)\)! For derivatives, slopes reciprocate: since \(\mu = b'(\theta)\), \(\frac{d\mu}{d\theta} = b''(\theta) = V(\mu) \implies \frac{d\theta}{d\mu} = \frac{1}{V(\mu)}\); since \(\eta = g(\mu)\), \(\frac{d\mu}{d\eta} = \frac{1}{g'(\mu)}\).
+        </li>
+        <li>
+          <strong>Log-derivative trick:</strong> Since \(f(y\mid\theta) = e^{\log f(y\mid\theta)}\), chain rule gives \(\frac{\partial f}{\partial\theta} = \frac{\partial \log f}{\partial\theta}\,f(y\mid\theta)\), turning density derivatives directly into expectations!
+        </li>
+        <li>
+          <strong>Swapping \(\frac{d}{d\theta}\) and \(\sum / \int\) (Fixed-Support Condition):</strong> Because \(\sum_{y\in\{0,1\}} f(y\mid\theta) = \frac{1}{1+e^\theta} + \frac{e^\theta}{1+e^\theta} = 1\) for all \(\theta\), differentiating wrt \(\theta\) gives \(-\frac{e^\theta}{(1+e^\theta)^2} + \frac{e^\theta}{(1+e^\theta)^2} = 0\). Interchanging \(\frac{d}{d\theta}\) and \(\int_{\mathcal{Y}}\) requires the support \(\mathcal{Y}\) <strong>not to depend on \(\theta\)</strong> (counterexample: \(Y \sim \operatorname{Uniform}(0,\theta)\) has moving upper limit \(\theta\), so \(\int_0^\theta \partial_\theta(1/\theta)\,dy = -1/\theta \neq 0\); exponential families are safe because \(\mathcal{Y}\) is free of \(\theta\)).
+        </li>
+        <li>
+          <strong>First-order Taylor linearization (for IRLS working response \(z_i\)):</strong> Expanding \(g(y_i)\) around \(\hat{\mu}_i\) gives \(z_i = g(\hat{\mu}_i) + (y_i - \hat{\mu}_i)g'(\hat{\mu}_i) = \hat{\eta}_i + (y_i - \hat{\mu}_i)\frac{d\eta_i}{d\mu_i}\). At \(y_1 = 0, \hat{\mu}_1 = 1\) under \(g(\mu)=\log\mu\), raw \(\log(0) = -\infty\) crashes, while \(z_1 = \log(1) + \frac{0-1}{1} = -1\) is completely finite!
+        </li>
+        <li>
+          <strong>Delta-method variance (for IRLS weights \(w_i\)):</strong> Treating trial \(\hat{\eta}_i\) and slope \(g'(\hat{\mu}_i)\) as fixed constants at step \(t\), \(\operatorname{Var}(z_i) = [g'(\hat{\mu}_i)]^2 \operatorname{Var}(Y_i) = \frac{\phi}{p_i}V(\hat{\mu}_i)[g'(\hat{\mu}_i)]^2\).
+        </li>
+      </ol>
+    </section>
+
+    <section id="matrix-wls">
+      <h2>7. Design Matrices, Summation-to-Matrix Rules, WLS &amp; \(\chi^2 / F\) Limits</h2>
+      <ul>
+        <li>
+          <strong>Design matrix \(X\) &amp; \(p = \dim(\beta)\) convention:</strong> With \(n\) rows and \(p\) total parameters (including intercept column \(\mathbf{1}_n\)), row \(i\) is \(x_i^\top = [1, x_{i1}, \dots, x_{i,p-1}]\), so \(\eta = X\beta\) and residual degrees of freedom are \(\text{df}_{\text{resid}} = n - p\). A categorical factor with \(K\) levels uses \(K-1\) 0/1 dummy columns (dropping one reference baseline so columns don’t sum to \(\mathbf{1}_n\) and make \(X^\top W X\) singular).
+        </li>
+        <li>
+          <strong>Three summation-to-matrix identities:</strong>
+          \[
+            \sum_{i=1}^n x_i(y_i - \mu_i) = X^\top(y - \mu), \qquad
+            \sum_{i=1}^n w_i x_i x_i^\top = X^\top W X, \qquad
+            \operatorname{Cov}(AY) = A\operatorname{Cov}(Y)A^\top.
+          \]
+        </li>
+        <li>
+          <strong>Weighted Least Squares (WLS) in 3 numbers:</strong> When \(z_i = x_i^\top\beta + e_i\) has unequal variance \(\operatorname{Var}(e_i) = \phi / w_i\), weighting each squared residual by precision \(w_i\) yields \(\hat{\beta}_{\text{WLS}} = (X^\top W X)^{-1} X^\top W z\) with \(\operatorname{Cov}(\hat{\beta}_{\text{WLS}}) = \phi(X^\top W X)^{-1}\).
+          <br><em>Check on \(x=(0,1,2)^\top, z=(1,2,6)^\top\):</em> Equal weights give slope \(2.5\); downweighting noisy row 3 with \(w=(4,4,1)\) gives \(X^\top W X = \begin{bmatrix}9&amp;6\\6&amp;8\end{bmatrix}, X^\top W z = \begin{bmatrix}18\\20\end{bmatrix} \implies \hat{\beta}_{\text{WLS}} = (2/3,\; 2.0)^\top\)!
+        </li>
+        <li>
+          <strong>\(\chi^2_\nu\) vs. \(F_{\nu, n-p}\) when testing \(\nu = p_2 - p_1\) parameters:</strong> When dispersion \(\phi = 1\) is known (Binomial/Poisson), test statistics follow \(\chi^2_\nu\) asymptotically (95% cutoff for \(\nu=1\) is \(3.84 = 1.96^2\)). When \(\hat{\phi}\) is estimated on \(n - p_2\) df (Gaussian/Gamma/Quasi-GLM), dividing by \(\hat{\phi}\) gives \(F_{\nu, n-p_2}\); as \(n - p_2 \to \infty\), \(\nu F_{\nu, n-p_2} \xrightarrow{d} \chi^2_\nu\).
+        </li>
+      </ul>
+    </section>
+
+    <footer class="lesson-footer">
+      Part of the <a href="../index.html">GLM Learning Workspace</a> · Next: <a href="../lessons/0001-why-straight-lines-break.html">Lesson 1</a> or <a href="estimation-and-deviance-reference.html">EDF, IRLS &amp; Deviance Reference</a>.
+    </footer>
+  </main>
+
+  <script src="../assets/vendor/katex/0.19.1/katex.min.js"></script>
+  <script src="../assets/vendor/katex/0.19.1/contrib/auto-render.min.js"></script>
+  <script src="../assets/math.js"></script>
+</body>
+</html>

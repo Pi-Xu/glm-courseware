@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Evaluation Metrics &amp; Model Performance Taxonomy — GLM Reference</title>
+  <link rel="stylesheet" href="../assets/vendor/katex/0.19.1/katex.min.css">
+  <link rel="stylesheet" href="../assets/teaching.css">
+</head>
+<body>
+  <nav class="topbar">
+    <div class="topbar-inner">
+      <a class="topbar-brand" href="../index.html">GLM Learning Workspace</a>
+      <div class="topbar-nav">
+        <a href="../lessons/0001-why-straight-lines-break.html">Lesson 1</a>
+        <a href="../lessons/0002-why-auc-beats-accuracy.html">Metrics 1: AUC</a>
+        <a href="../lessons/0003-model-performance-taxonomy.html">Metrics 2: Taxonomy</a>
+        <a href="evaluation-metrics-reference.html" aria-current="page">Metrics Guide</a>
+        <a href="prerequisites-primer.html">Prerequisites</a>
+        <a href="glm-blueprint-cheatsheet.html">GLM Blueprint</a>
+        <a href="estimation-and-deviance-reference.html">EDF, IRLS &amp; Deviance</a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <header class="lesson-header">
+      <p class="eyebrow">Reference Document · Evaluation Metrics Track (Zero Statistics Assumed)</p>
+      <h1>Evaluation Metrics &amp; the Four-Part Taxonomy of Model Performance</h1>
+      <p class="subtitle">
+        Complete zero-stats cheat sheet mapping every binary and probability metric—ROC-AUC, PR-AUC, Calibration, Log-Loss (GLM Deviance), Brier Score, Accuracy, Precision, and Recall—to the exact dimension of model performance it measures.
+      </p>
+      <div class="meta-strip">
+        <span class="badge">Zero-Stats Friendly</span>
+        <span class="badge"><a href="../lessons/0002-why-auc-beats-accuracy.html">Lesson 0002: AUC vs. Accuracy</a></span>
+        <span class="badge"><a href="../lessons/0003-model-performance-taxonomy.html">Lesson 0003: 4-Category Taxonomy</a></span>
+      </div>
+    </header>
+
+    <section id="four-pillars">
+      <div class="callout ok" style="margin-top:0">
+        <div class="callout-title">First Principle of Binary Classification</div>
+        <p>
+          A binary model places every real \(0\) (<span class="cls-badge cls-0"></span>) and real \(1\) (<span class="cls-badge cls-1">×</span>) along \([0.0, 1.0]\).
+          <strong>Generally speaking, the stronger a model’s capability is, the more cleanly the two classes stay near opposite ends: true \(0\)s (<span class="cls-badge cls-0"></span>) gather near \(0.0\), and true \(1\)s (<span class="cls-badge cls-1">×</span>) gather near \(1.0\).</strong>
+          (Explore interactively in <a href="../lessons/0002-why-auc-beats-accuracy.html#binary-intuition">Lesson 0002 §1</a>.)
+        </p>
+      </div>
+
+      <h2>1. The Master Map: Four Categories of Model Performance</h2>
+      <p>
+        A binary GLM outputs continuous risk probabilities \(s_i = \hat{\mu}_i \in (0, 1)\). Following the classic evaluation framework
+        <a class="cite" href="https://doi.org/10.1097/EDE.0b013e3181c30fb2" target="_blank" rel="noopener">Steyerberg et al., 2010</a>,
+        <strong>"model performance" divides into four distinct categories</strong>—never use a metric from one category to answer a question in another:
+      </p>
+
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Performance Category</th>
+            <th>Needs Cutoff \(t\)?</th>
+            <th>Plain-English Question</th>
+            <th>Primary Metrics</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>1. Discrimination</strong><br><span style="color:var(--ink-muted)">(Ranking / Separation)</span></td>
+            <td><strong>No</strong></td>
+            <td>Does the model assign higher scores to real \(1\)s than to real \(0\)s?</td>
+            <td><strong>ROC-AUC</strong> (general pairs), <strong>PR-AUC</strong> (rare \(1\)s)</td>
+          </tr>
+          <tr>
+            <td><strong>2. Calibration</strong><br><span style="color:var(--ink-muted)">(Probability Honesty)</span></td>
+            <td><strong>No</strong></td>
+            <td>When the model predicts \(0.30\), does the event actually happen ~\(30\%\) of the time?</td>
+            <td><strong>Calibration Curve</strong> (45° plot), <strong>ECE</strong>, Calibration Intercept &amp; Slope</td>
+          </tr>
+          <tr>
+            <td><strong>3. Overall Probabilistic</strong><br><span style="color:var(--ink-muted)">(Discrimination + Calibration)</span></td>
+            <td><strong>No</strong></td>
+            <td>How close is each probability \(s_i\) to true \(y_i \in \{0,1\}\)? (Requires <em>both</em> Cat 1 &amp; Cat 2!)</td>
+            <td><strong>Log-Loss</strong> (\(= \frac{\text{GLM Deviance}}{2n}\)), <strong>Brier Score</strong> \(\frac{1}{n}\sum(y_i-s_i)^2\)</td>
+          </tr>
+          <tr>
+            <td><strong>4. Cutoff Action / Utility</strong><br><span style="color:var(--ink-muted)">(Hard Yes/No Decisions)</span></td>
+            <td><strong>Yes</strong></td>
+            <td>Once we pick ONE cutoff \(t\) to trigger Yes/No actions, what mistakes occur?</td>
+            <td><strong>Accuracy</strong>, <strong>Recall (TPR)</strong>, <strong>FPR</strong>, <strong>Precision</strong>, <strong>F1</strong>, Net Benefit</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="diagnosis-grid">
+      <h2>2. Diagnosis Matrix: Discrimination vs. Calibration &amp; AUC Tiers</h2>
+      <p>
+        <strong>Crucial rule:</strong> Category 1 (Discrimination) and Category 2 (Calibration) are independent—either one can be \(100\%\) perfect while the other is broken!
+      </p>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Four Concrete Model Archetypes</h3>
+          <ul style="font-size:0.88rem;margin-bottom:0">
+            <li><strong>High AUC + Honest Calibration:</strong> Ideal GLM—ranks cases accurately <em>and</em> outputs trustworthy probabilities.</li>
+            <li><strong>High AUC + Bad Calibration</strong> (e.g., \(s_i\) divided by \(5\)): Ranks queues fine, but raw risk numbers lie (\(\text{Log-Loss}\) &amp; default \(t=0.50\) break!).</li>
+            <li><strong>AUC = 0.50 + Perfect Calibration</strong> (constant base-rate predictor, e.g., always predicting \(0.50\) when \(50\%\) are sick): Honest group average, zero individual separation.</li>
+            <li><strong>High AUC + Overconfident \(0.01/0.99\):</strong> Looks fine on AUC &amp; Accuracy, but one wrong \(0.99\) bet blows up <strong>Log-Loss</strong>!</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h3>AUC Discrimination Tiers <span style="font-weight:400;font-size:0.82rem;color:var(--ink-muted)">(Hosmer &amp; Lemeshow, 2013)</span></h3>
+          <ul style="font-size:0.88rem;margin-bottom:0">
+            <li><strong>\(\text{AUC} &lt; 0.50\):</strong> Worse than random (scores point backward).</li>
+            <li><strong>\(\text{AUC} = 0.50\):</strong> Zero discrimination (coin flip / constant score).</li>
+            <li><strong>\(0.50 &lt; \text{AUC} &lt; 0.70\):</strong> Weak separation <em>(can still be valuable in noisy finance/ads!)</em>.</li>
+            <li><strong>\(0.70 \le \text{AUC} &lt; 0.80\):</strong> Acceptable / useful separation.</li>
+            <li><strong>\(0.80 \le \text{AUC} &lt; 0.90\):</strong> Strong separation.</li>
+            <li><strong>\(\text{AUC} \ge 0.90\):</strong> Outstanding <em>(if \(&gt;0.99\), check for data leakage!)</em>.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="confusion-rates">
+      <h2>3. Category 4 Zoom-In: 2×2 Confusion Table (100 Card Swipes)</h2>
+      <p>
+        Suppose out of <strong>100 card swipes</strong>, <strong>10 are truly stolen (\(y=1\))</strong> and <strong>90 are honest (\(y=0\))</strong>. At a fixed cutoff \(t\), our alarm flags <strong>12 cards</strong>: <strong>8 stolen</strong> (\(\text{TP}=8\)) and <strong>4 honest mistakes</strong> (\(\text{FP}=4\)), leaving \(\text{FN}=2\) missed thefts and \(\text{TN}=86\) cleared cards:
+      </p>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Category 4 Metric</th>
+            <th>Plain-English Question</th>
+            <th>Fraction on Our 100 Cards</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Accuracy</strong></td>
+            <td>Out of <em>everyone</em>, what fraction did we label right?</td>
+            <td>\(\frac{\text{TP}+\text{TN}}{100} = \frac{8+86}{100} = 94\%\) <em>(Trap: saying "0 for all" already gets \(90\%\)!)</em></td>
+          </tr>
+          <tr>
+            <td><strong>Catch Rate / Recall / TPR</strong></td>
+            <td>Out of <em>all real \(1\)s</em>, what fraction did we catch?</td>
+            <td>\(\frac{\text{TP}}{\text{TP}+\text{FN}} = \frac{8}{10} = 80\%\)</td>
+          </tr>
+          <tr>
+            <td><strong>False Alarm Rate / FPR</strong></td>
+            <td>Out of <em>all real \(0\)s</em>, what fraction did we falsely flag?</td>
+            <td>\(\frac{\text{FP}}{\text{FP}+\text{TN}} = \frac{4}{90} \approx 4.4\%\)</td>
+          </tr>
+          <tr>
+            <td><strong>Precision</strong></td>
+            <td>Out of <em>alarms that rang</em>, what fraction were real \(1\)s?</td>
+            <td>\(\frac{\text{TP}}{\text{TP}+\text{FP}} = \frac{8}{12} \approx 66.7\%\)</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="decision-matrix">
+      <h2>4. Practical Troubleshooting: Which Metric Solves Your Exact Goal?</h2>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Real-World Goal</th>
+            <th>Category</th>
+            <th>Metric to Pick</th>
+            <th>Why Other Metrics Fail Here</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Compare two models’ general ability to rank \(1\)s above \(0\)s before picking a threshold</td>
+            <td>Cat 1 (Discrimination)</td>
+            <td><strong>ROC-AUC</strong>
+              <a class="cite" href="https://doi.org/10.1148/radiology.143.1.7063747" target="_blank" rel="noopener">Hanley &amp; McNeil, 1982</a>
+            </td>
+            <td>Accuracy depends on an arbitrary \(t=0.50\) cutoff and majority-class size</td>
+          </tr>
+          <tr>
+            <td>Catch rare \(0.1\%\) needles (fraud / rare disease) without flooding reviewers with false alarms</td>
+            <td>Cat 1 (Rare-Event Rank)</td>
+            <td><strong>PR-AUC</strong>
+              <a class="cite" href="https://doi.org/10.1371/journal.pone.0118432" target="_blank" rel="noopener">Saito &amp; Rehmsmeier, 2015</a>
+            </td>
+            <td>ROC-AUC divides false alarms by huge \(\text{TN}\), making \(100\) false alarms look tiny</td>
+          </tr>
+          <tr>
+            <td>Price insurance, estimate clinical risk, or fit \(\hat{\beta}\) in a Logistic GLM</td>
+            <td>Cat 2 + Cat 3 (Calibrated Probabilities)</td>
+            <td><strong>Log-Loss (\(= D/2n\))</strong> + <strong>Calibration Plot</strong>
+              <a class="cite" href="https://doi.org/10.1198/016214506000001437" target="_blank" rel="noopener">Gneiting &amp; Raftery, 2007</a>
+            </td>
+            <td>ROC-AUC and PR-AUC ignore monotonic rescaling (\(0.80\) vs. \(0.08\) gives identical AUC!)</td>
+          </tr>
+          <tr>
+            <td>Audit a deployed yes/no trigger rule where missing a case costs \(10\times\) a false alarm</td>
+            <td>Cat 4 (Cutoff Action)</td>
+            <td>Tune cutoff \(t\) for <strong>Cost / Net Benefit</strong>; report <strong>Recall &amp; Precision @ \(t\)</strong></td>
+            <td>Default \(t=0.50\) falsely assumes false alarms and missed cases have equal \(1:1\) cost</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer class="lesson-footer">
+      Part of the <a href="../index.html">GLM Learning Workspace</a> · Interactive Labs:
+      <a href="../lessons/0002-why-auc-beats-accuracy.html">Lesson 0002 (AUC vs. Accuracy)</a> ·
+      <a href="../lessons/0003-model-performance-taxonomy.html">Lesson 0003 (4-Category Performance Taxonomy)</a>.
+    </footer>
+  </main>
+
+  <script src="../assets/vendor/katex/0.19.1/katex.min.js"></script>
+  <script src="../assets/vendor/katex/0.19.1/contrib/auto-render.min.js"></script>
+  <script src="../assets/math.js"></script>
+</body>
+</html>
